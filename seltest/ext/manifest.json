@@ -1,0 +1,19 @@
+{
+  "name": "Seltest XMLHTTPRequest tracker",
+  "description": "Track pending requests",
+  "version": "0.0.0",
+  "manifest_version": 2,
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": ["pending-requests.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "permissions": [
+    "tabs", "<all_urls>"
+  ]
+}
