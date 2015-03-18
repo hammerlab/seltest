@@ -1,1 +1,2 @@
-include track-requests/*
+include track-requests/chrome.crx
+include track-requests/firefoxtrack.xpi
