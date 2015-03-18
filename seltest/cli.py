@@ -3,18 +3,21 @@ Seltest, the saltiest tests.
 
 Usage:
   sel test [options] <path>
+  sel update [options] <path>
   sel list [options] <path>
+  sel interactive
   sel --version
 
 Options:
   -h --help                      Show this screen.
   --version                      Show version.
+  -v                             Verbose mode.
   -f FILTER --filter FILTER      Only operate on tests matching regexp FILTER.
                                  Can be a comma-separated list of names.
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
 """
-import seltest
+import __init__ as seltest
 
 import docopt
 
@@ -70,7 +73,7 @@ def filter_test_methods(cls, pred):
     tests = cls.__test_methods
     filtered_tests = []
     for test in tests:
-        name = test._BaseMeta__name
+        name = test.__name
         if pred(name):
             filtered_tests.append(test)
     cls.__test_methods = filtered_tests
@@ -92,9 +95,29 @@ def run_tests(test_classes):
     return [Test().run() for Test in test_classes]
 
 
+def _get_args():
+    return docopt.docopt(__doc__, version=seltest.__version__)
+
+
 def main(args=None):
     if args is None:
-        args = docopt.docopt(__doc__, version='Seltest 0.0.0')
+        args = _get_args()
+
+    if args['interactive']:
+        print('Starting interactive browsing session...')
+        from selenium import webdriver
+        options = webdriver.ChromeOptions()
+        options.add_extension(seltest.CHROME_EXT_PATH)
+        driver = webdriver.Chrome(chrome_options=options)
+        try:
+            import IPython
+            IPython.embed()
+        except NameError:
+            print('Using default Python REPL: recommend downloading IPython'
+                  'for a better interactive experience')
+            import code
+            code.interact(local={'driver': driver})
+
     path = args['<path>']
     files = get_test_files(path)
     modules = get_modules_from_files(path, files)
@@ -119,17 +142,22 @@ def main(args=None):
         print 'Running tests...'
         for Test in classes:
             print(' for {}'.format(Test.__name__))
-            save_path = os.getcwd()
-            Test().run(image_dir=save_path)
+            Test().run(image_dir=os.getcwd())
+    elif args['update']:
+        print 'Updating images...'
+        for Test in classes:
+            print(' for {}'.format(Test.__name__))
+            Test().update(image_dir=os.getcwd())
     elif args['list']:
         print 'All matched tests:'
         for Test in classes:
             methods = Test.__test_methods
             print(' {}: {} tests'.format(Test.__name__, len(methods)))
             for test in methods:
-                print('   {}'.format(test._BaseMeta__name))
+                print('   {}'.format(test.__name))
+                if args['-v'] and test.__doc__:
+                    print('     "{}"').format(test.__doc__)
 
 
 if __name__ == '__main__':
-    args = docopt.docopt(__doc__, version='Seltest 0.0.0')
-    main(args)
+    main(_get_args())

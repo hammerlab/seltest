@@ -11,12 +11,19 @@ import time
 import types
 
 
-EXT_PATH = pkg_resources.resource_filename(__name__, 'ext.crx')
+CHROME_EXT_PATH = pkg_resources.resource_filename(__name__, 'ext.crx')
+FIREFOX_EXT_PATH = pkg_resources.resource_filename(__name__, 'ext.xli')
+
 AJAX_TIMEOUT = 10  # seconds
 AJAX_TIMEOUT_MSG = 'Timed out waiting for XMLHTTPRequests to finish.'
 GET_PENDING_REQUESTS_JS = 'return window.__SELTEST_PENDING_REQUESTS;'
 WAIT_TIMEOUT = 10  # seconds
 WAIT_TIMEOUT_MSG = 'Timed out waiting for element {}.'
+
+DEFAULT_WINDOW_SIZE = [2000, 1000]
+
+CHROME = 'chrome'
+FIREFOX = 'firefox'
 
 
 class BaseMeta(type):
@@ -24,29 +31,44 @@ class BaseMeta(type):
     def __new__(cls, cls_name, cls_bases, cls_attrs):
         cls_attrs['__test_methods'] = []
         for attr, value in cls_attrs.iteritems():
-            if BaseMeta.__is_a_test_method(attr, value):
+            if BaseMeta._is_a_test_method(attr, value):
                 cls_attrs['__test_methods'].append(value)
+                BaseMeta._update_url_with_base_url(value, cls_attrs)
                 prefix = cls_name.lower()
-                value.__name = ('-').join([prefix, attr])
+                setattr(value, '__name', ('-').join([prefix, attr]))
         return super(
             BaseMeta, cls).__new__(cls, cls_name, cls_bases, cls_attrs)
 
     @classmethod
-    def __is_a_test_method(cls, attr, value):
-        is_method =  type(value) == types.FunctionType
-        has_url = hasattr(value, '__url')
-        return is_method and has_url
+    def _update_url_with_base_url(meta, value, cls_attrs):
+        if 'base_url' in cls_attrs:
+            full_url = cls_attrs['base_url'] + getattr(value, '__url', '')
+            setattr(value, '__url', full_url)
+
+    @classmethod
+    def _is_a_test_method(meta, attr, value):
+        is_method = type(value) == types.FunctionType
+        underscored = attr.startswith('_')
+        return is_method and not underscored
 
 
 class Base(object):
     """Base from which all tests must inherit from."""
     __metaclass__ = BaseMeta
+    window_size = DEFAULT_WINDOW_SIZE
+    browser = CHROME
 
     def __init__(self):
-        options = webdriver.ChromeOptions()
-        options.add_extension(EXT_PATH)
-        self.driver = webdriver.Chrome(chrome_options=options)
-        self.driver.set_window_size(2000, 1000)
+        self.base_url = ''
+        if self.browser == CHROME:
+            options = webdriver.ChromeOptions()
+            options.add_extension(CHROME_EXT_PATH)
+            self.driver = webdriver.Chrome(chrome_options=options)
+        elif self.browser == FIREFOX:
+            profile = webdriver.FirefoxProfile()
+            profile.add_extension(FIREFOX_EXT_PATH)
+            self.driver = webdriver.Firefox(firefox_profile=profile)
+        self.driver.set_window_size(*self.window_size)
         self.driver.implicitly_wait(10)
         return super(Base, self).__init__()
 
@@ -54,16 +76,27 @@ class Base(object):
         failed = False
         tests = type(self).__dict__['__test_methods']
         for test in tests:
-            name, url = self._name_and_url(test)
-            self.driver.get(url)
-            test(self, self.driver)
-            self._handle_waitfors(test)
-            time.sleep(0.1)  # Give JS a chance to fire any other AJAX.
-            self._wait_for_ajax()
+            name, url = self._prepare_page(test)
             if not self._screenshot_and_diff(name, image_dir):
                 failed = True
         self.driver.quit()
         return not failed
+
+    def update(self, image_dir):
+        tests = type(self).__dict__['__test_methods']
+        for test in tests:
+            name, url = self._prepare_page(test)
+            self._update_screenshot(name, image_dir)
+        self.driver.quit()
+
+    def _prepare_page(self, test):
+        name, url = self._name_and_url(test)
+        self.driver.get(url)
+        test(self, self.driver)
+        self._handle_waitfors(test)
+        time.sleep(0.1)  # Give JS a chance to fire any other AJAX.
+        self._wait_for_ajax()
+        return name, url
 
     def _is_element_present(self, sel, text=None):
         self.driver.implicitly_wait(0)
@@ -80,7 +113,7 @@ class Base(object):
 
     def _name_and_url(self, test):
         test_dict = test.__dict__
-        name = test_dict['_BaseMeta__name']
+        name = test_dict['__name']
         url = test_dict['__url']
         return name, url
 
@@ -120,6 +153,23 @@ class Base(object):
                 print msg.format(name, image_dir)
                 return False
 
+    def _update_screenshot(self, name, image_dir):
+        path = '{0}/{1}.png'.format(image_dir, name)
+        if not os.path.isfile(path):
+            msg = '  • {0}: creating for the first time.'
+            print msg.format(name)
+        else:
+            new_path = '{0}/_{1}.png'.format(image_dir, name)
+            self.driver.save_screenshot(new_path)
+            if are_same_files(new_path, path):
+                msg = '  ✓ {0}: no change'
+                print msg.format(name)
+            else:
+                msg = '  ✗ {0}: screenshots differ, updating'
+                print msg.format(name)
+            os.remove(new_path)
+        self.driver.save_screenshot(path)
+
 
 def ajax_is_complete(driver):
     return driver.execute_script(GET_PENDING_REQUESTS_JS) == 0
@@ -137,7 +187,7 @@ def are_same_files(*args):
     return True
 
 
-def url(url_str):
+def url(url_str=''):
     def decorator(method):
         method.__url = url_str
         return method

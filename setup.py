@@ -8,7 +8,7 @@ except (IOError, ImportError):
 
 
 setup(name='seltest',
-      version='0.0.21',
+      version='0.0.22',
       description='A perceptual diff testing framework for the fastest comprehensive tests you can write and run.',
       long_description=description,
       author='Isaac Hodes',
@@ -20,7 +20,7 @@ setup(name='seltest',
                         'docopt'],
       entry_points={
           'console_scripts': [
-             'selt = seltest.cli:main',
+             'sel = seltest.cli:main',
           ]
       },
       classifiers=[
