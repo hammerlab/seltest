@@ -37,6 +37,12 @@ Options:
                                  Can be a comma-separated list of names.
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
+  -d NAME --driver NAME          Driver/Browser to run with. Can be one of
+                                 chrome, firefox. [default: chrome]
+  --firefox-path                 Path to Firefox binary, if you don't want to
+                                 use the default.
+  --config                       Path to config file. Default is to first look
+                                 at ./.seltestrc, and then ~/.seltestrc
 ```
 
 # Example
@@ -54,9 +60,9 @@ from seltest import url, waitfor, Base
 
 BASE = 'localhost:5000'
 
-
 class Website(Base):
     base_url = BASE
+
     @url('/about')
     def about_page(self, driver): pass
 
@@ -82,3 +88,19 @@ class Runs(Base):
         bams.click()
 
 ````
+
+# Config
+
+Seltest can use as defaults a config file in either `~/.seltestrc` or `./seltestrc`.
+
+It must look like this (note that it looks just as the command line options
+would appear: this makes it easy to remember & consult `sel --help`).
+
+Note: the `[arguments]` heading is required.
+
+```
+[arguments]
+--firefox-path ~/somewhere/there/is/firefox-bin
+-v
+```
+

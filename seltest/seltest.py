@@ -24,9 +24,6 @@ WAIT_TIMEOUT_MSG = 'Timed out waiting for element {}.'
 
 DEFAULT_WINDOW_SIZE = [2000, 1000]
 
-CHROME = 'chrome'
-FIREFOX = 'firefox'
-
 
 class BaseMeta(type):
     """Base metaclass that tracks all test functions."""
@@ -58,38 +55,28 @@ class Base(object):
     """Base from which all tests must inherit from."""
     __metaclass__ = BaseMeta
     window_size = DEFAULT_WINDOW_SIZE
-    browser = CHROME
 
-    def __init__(self):
+    def __init__(self, driver):
         self.base_url = ''
-        if self.browser == CHROME:
-            options = webdriver.ChromeOptions()
-            options.add_extension(CHROME_EXT_PATH)
-            self.driver = webdriver.Chrome(chrome_options=options)
-        elif self.browser == FIREFOX:
-            profile = webdriver.FirefoxProfile()
-            profile.add_extension(FIREFOX_EXT_PATH)
-            self.driver = webdriver.Firefox(firefox_profile=profile)
+        self.driver = driver
         self.driver.set_window_size(*self.window_size)
         self.driver.implicitly_wait(10)
         return super(Base, self).__init__()
 
     def run(self, image_dir):
-        failed = False
+        passes = True
         tests = type(self).__dict__['__test_methods']
         for test in tests:
             name, url = self._prepare_page(test)
             if not self._screenshot_and_diff(name, image_dir):
-                failed = True
-        self.driver.quit()
-        return not failed
+                passes = False
+        return passes
 
     def update(self, image_dir):
         tests = type(self).__dict__['__test_methods']
         for test in tests:
             name, url = self._prepare_page(test)
             self._update_screenshot(name, image_dir)
-        self.driver.quit()
 
     def _prepare_page(self, test):
         name, url = self._name_and_url(test)
@@ -101,6 +88,8 @@ class Base(object):
         return name, url
 
     def _is_element_present(self, sel, text=None):
+        # Disable implicit wait at first so we don't double-wait, and reenable
+        # at the end.
         self.driver.implicitly_wait(0)
         try:
             el = self.driver.find_element_by_css_selector(sel)
@@ -122,7 +111,7 @@ class Base(object):
     def _wait_for_ajax(self):
         self.driver.implicitly_wait(0)
         WebDriverWait(self.driver, AJAX_TIMEOUT).until(
-            ajax_is_complete,  AJAX_TIMEOUT_MSG)
+            _ajax_is_complete,  AJAX_TIMEOUT_MSG)
         self.driver.implicitly_wait(WAIT_TIMEOUT)
 
     def _handle_waitfors(self, test):
@@ -143,15 +132,15 @@ class Base(object):
             self.driver.save_screenshot(old_path)
             return True
         else:
-            new_path = '{0}/NEW_{1}.png'.format(image_dir, name)
+            new_path = '{0}/{1}.NEW.png'.format(image_dir, name)
             self.driver.save_screenshot(new_path)
-            if are_same_files(new_path, old_path):
+            if _are_same_files(new_path, old_path):
                 os.remove(new_path)
                 msg = '  ✓ {0}: no change'
                 print msg.format(name)
                 return True
             else:
-                msg = '  ✗ {0}: screenshots differ, see {1}/NEW_{0}.png'
+                msg = '  ✗ {0}: screenshots differ, see {1}/{0}.NEW.png'
                 print msg.format(name, image_dir)
                 return False
 
@@ -163,7 +152,7 @@ class Base(object):
         else:
             new_path = '{0}/_{1}.png'.format(image_dir, name)
             self.driver.save_screenshot(new_path)
-            if are_same_files(new_path, path):
+            if _are_same_files(new_path, path):
                 msg = '  ✓ {0}: no change'
                 print msg.format(name)
             else:
@@ -173,11 +162,11 @@ class Base(object):
         self.driver.save_screenshot(path)
 
 
-def ajax_is_complete(driver):
+def _ajax_is_complete(driver):
     return driver.execute_script(GET_PENDING_REQUESTS_JS) == 0
 
 
-def are_same_files(*args):
+def _are_same_files(*args):
     hashed = None
     for path in args:
         with open(path) as f:
@@ -190,6 +179,10 @@ def are_same_files(*args):
 
 
 def url(url_str=''):
+    """
+    Decorator for specifying the URL the test shoudl visit, relative to the test
+    class's `base_url`.
+    """
     def decorator(method):
         method.__url = url_str
         return method
@@ -197,6 +190,11 @@ def url(url_str=''):
 
 
 def waitfor(css_selector, text=None):
+    """
+    Decorator for specifying elements (selected by a CSS-style selector) to
+    explicitly wait for before taking a screenshot. If text is set, wait for the
+    element to contain that text before taking the screenshot.
+    """
     def decorator(method):
         method.__waitfor_css_selector = css_selector
         method.__waitfor_text = text

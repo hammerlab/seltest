@@ -16,6 +16,12 @@ Options:
                                  Can be a comma-separated list of names.
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
+  -d NAME --driver NAME          Driver/Browser to run with. Can be one of
+                                 chrome, firefox. [default: chrome]
+  --firefox-path                 Path to Firefox binary, if you don't want to
+                                 use the default.
+  --config                       Path to config file. Default is to first look
+                                 at ./.seltestrc, and then ~/.seltestrc
 """
 import __init__ as seltest
 
@@ -24,29 +30,23 @@ import docopt
 import importlib
 import os
 import re
+from selenium import webdriver
 import sys
 
 
-def get_test_files(path):
-    """
-    Return list of python files starting with "test" on path.
-    """
-    files = [f for f in os.listdir(path)
-             if os.path.isfile(os.path.join(path, f)) and f.startswith('test')
-             and f.endswith('.py')]
-    return files
-
-
-def get_modules_from_files(path, filenames):
+def _get_modules_from_path(path):
     """
     Return list of (imported) modules from list of filenames on path.
     """
     os.chdir(path)
+    filenames = [f for f in os.listdir(path)
+                 if os.path.isfile(os.path.join(path, f)) and f.startswith('test')
+                 and f.endswith('.py')]
     sys.path = ['.'] + sys.path
     return [importlib.import_module(m.split('.')[0]) for m in filenames]
 
 
-def get_test_classes_from_modules(modules):
+def _get_test_classes_from_modules(modules):
     """
     Return classes with metaclass seltest.seltest.BaseMeta in list of modules.
     """
@@ -61,7 +61,21 @@ def get_test_classes_from_modules(modules):
     return classes
 
 
-def filter_test_methods(cls, pred):
+def _filter_classes(classes, args):
+    """
+    Return list of classes. Given a list of classes args, return list of test
+    classes to be run.
+    """
+    class_name_filters = args['--classname']
+    if class_name_filters:
+        class_name_filters = class_name_filters.split(',')
+        class_name_res = [re.compile(p, re.I) for p in class_name_filters]
+        classes = [c for c in classes
+                   if any(f.search(c.__name__) for f in class_name_res)]
+    return classes
+
+
+def _filter_test_methods(cls, pred):
     """
     Return cls with test methods for which pred applied to its name returns
     True.
@@ -80,61 +94,11 @@ def filter_test_methods(cls, pred):
     return cls
 
 
-def get_test_classes_from_path(path):
-    """Return list of test classes on path."""
-    os.chdir(path)
-    sys.path = ['.'] + sys.path
-    files = get_test_files('.')
-    modules = get_modules_from_files(path, files)
-    classes = get_test_classes_from_modules(modules)
-    return classes
-
-
-def run_tests(test_classes):
-    """Return result of all tests in the given test classes."""
-    return [Test().run() for Test in test_classes]
-
-
-def _get_args():
-    return docopt.docopt(__doc__, version=seltest.__version__)
-
-
-def main(args=None):
-    if args is None:
-        args = _get_args()
-
-    if args['interactive']:
-        print('Starting interactive browsing session...')
-        print('(Use the `driver` variable to control the browser)')
-        from selenium import webdriver
-        if args['chrome']:
-            options = webdriver.ChromeOptions()
-            options.add_extension(seltest.CHROME_EXT_PATH)
-            driver = webdriver.Chrome(chrome_options=options)
-        elif args['firefox']:
-            profile = webdriver.FirefoxProfile()
-            profile.add_extension(seltest.FIREFOX_EXT_PATH)
-            driver = webdriver.Firefox(firefox_profile=profile)
-        try:
-            import IPython
-            IPython.embed()
-        except ImportError:
-            print('Using default Python REPL: recommend downloading IPython'
-                  'for a better interactive experience')
-            import code
-            code.interact(local={'driver': driver})
-
-    path = args['<path>']
-    files = get_test_files(path)
-    modules = get_modules_from_files(path, files)
-    classes = get_test_classes_from_modules(modules)
-
-    class_name_filters = args['--classname']
-    if class_name_filters:
-        class_name_filters = class_name_filters.split(',')
-        class_name_res = [re.compile(p, re.I) for p in class_name_filters]
-        classes = [c for c in classes
-                   if any(f.search(c.__name__) for f in class_name_res)]
+def _filter_tests(classes, args):
+    """
+    Return list of classes. Given test classes and args, filters out tests in
+    classes.
+    """
     test_name_filters = args['--filter']
     if test_name_filters:
         test_name_filters = test_name_filters.split(',')
@@ -143,26 +107,132 @@ def main(args=None):
             return any(f.search(name) for f in test_name_res)
         for cls in classes:
             cls = filter_test_methods(cls, pred)
+    return classes
 
-    if args['test']:
-        print 'Running tests...'
-        for Test in classes:
-            print(' for {}'.format(Test.__name__))
-            Test().run(image_dir=os.getcwd())
-    elif args['update']:
-        print 'Updating images...'
-        for Test in classes:
-            print(' for {}'.format(Test.__name__))
-            Test().update(image_dir=os.getcwd())
-    elif args['list']:
-        print 'All matched tests:'
-        for Test in classes:
-            methods = Test.__test_methods
-            print(' {}: {} tests'.format(Test.__name__, len(methods)))
-            for test in methods:
-                print('   {}'.format(test.__name))
-                if args['-v'] and test.__doc__:
-                    print('     "{}"').format(test.__doc__)
+
+def _get_filtered_classes_to_run(args):
+    """
+    Return list of classes with all tests filtered out that don't match
+    criteria.
+    """
+    path = args['<path>']
+    modules = _get_modules_from_path(path)
+    classes = _get_test_classes_from_modules(modules)
+    classes = _filter_classes(classes, args)
+    classes = _filter_tests(classes, args)
+    return classes
+
+
+def _start_interactive_session(driver):
+    print('Starting interactive browsing session...')
+    print('(Use the `driver` variable to control the browser)')
+    try:
+        import IPython
+        IPython.embed()
+    except ImportError:
+        print('Using default Python REPL: recommend downloading IPython'
+              'for a better interactive experience')
+        import code
+        code.interact(local={'driver': driver})
+
+
+def _find_config():
+    seltest_rc = '.seltestrc'
+    local_config_path = os.path.join(os.getcwd(), seltest_rc)
+    if os.path.exists(local_config_path):
+        return local_config_path
+    home_config_path = os.path.join(os.path.expanduser('~'), seltest_rc)
+    if os.path.exists(home_config_path):
+        return home_config_path
+
+
+def _get_args():
+    try:  # py2
+        from ConfigParser import ConfigParser
+    except ImportError:  # py3
+        from configparser import ConfigParser
+
+    args = docopt.docopt(__doc__, version=seltest.__version__)
+
+    config_path = args['--config'] or _find_config()
+    config = {}
+    if config_path:
+        # allow_no_value so we can write `--force`, not `--force=True`
+        cp = ConfigParser(allow_no_value=True)
+        cp.read(config_path)
+        defaults = cp.items('arguments')
+        config = dict((key, True if value is None else value)
+                      for key, value in defaults)
+
+    return dict((str(key), args.get(key) or config.get(key))
+                for key in set(args) | set(config))
+
+
+def _create_driver(args):
+    driver = args['--driver'].lower()
+    if driver == 'chrome':
+        options = webdriver.ChromeOptions()
+        options.add_extension(seltest.CHROME_EXT_PATH)
+        driver = webdriver.Chrome(chrome_options=options)
+    elif driver == 'firefox':
+        profile = webdriver.FirefoxProfile()
+        profile.add_extension(seltest.FIREFOX_EXT_PATH)
+        profile.set_preference('app.update.auto', False)
+        binary = None
+        if args['--firefox-path']:
+            binary = webdriver.firefox.firefox_binary.FirefoxBinary(
+                os.path.expanduser(os.path.expandvars(args['--firefox-path'])))
+            driver = webdriver.Firefox(
+                firefox_profile=profile, firefox_binary=binary)
+        else:
+            driver = webdriver.Firefox(firefox_profile=profile)
+    else:
+        print('No driver with name {}, try chrome or firefox.'.format(driver))
+        sys.exit(1)
+    return driver
+
+
+def main(args=None):
+    if args is None:
+        args = _get_args()
+
+    passes = True
+
+    driver = None
+    if not args['list']:
+        driver = _create_driver(args)
+
+    if args['interactive']:
+        _start_interative_session(driver)
+    else:
+        classes = _get_filtered_classes_to_run(args)
+        if args['test']:
+            print 'Running tests...'
+            for Test in classes:
+                print(' for {}'.format(Test.__name__))
+                passes = Test(driver).run(image_dir=os.getcwd())
+        elif args['update']:
+            print 'Updating images...'
+            for Test in classes:
+                print(' for {}'.format(Test.__name__))
+                Test(driver).update(image_dir=os.getcwd())
+        elif args['list']:
+            print 'All matched tests:'
+            for Test in classes:
+                methods = Test.__test_methods
+                print(' {}: {} tests'.format(Test.__name__, len(methods)))
+                for test in methods:
+                    print('   {}'.format(test.__name))
+                    if args['-v'] and test.__doc__:
+                        print('     "{}"').format(test.__doc__)
+
+    if driver:
+        driver.quit()
+
+    if passes:
+        sys.exit(0)
+    else:
+        sys.exit('ERROR: some tests failed')
 
 
 if __name__ == '__main__':
