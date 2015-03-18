@@ -1,1 +1,2 @@
-graft track-requests
+include seltest/track-requests/firefoxtrack.xpi
+include seltest/track-requests/chrome.crx
