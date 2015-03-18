@@ -11,8 +11,10 @@ import time
 import types
 
 
-CHROME_EXT_PATH = pkg_resources.resource_filename(__name__, 'ext.crx')
-FIREFOX_EXT_PATH = pkg_resources.resource_filename(__name__, 'ext.xli')
+CHROME_EXT_PATH = pkg_resources.resource_filename(
+    __name__, '../track-requests/chrome.crx')
+FIREFOX_EXT_PATH = pkg_resources.resource_filename(
+    __name__, '../track-requests/firefoxtrack.xpi')
 
 AJAX_TIMEOUT = 10  # seconds
 AJAX_TIMEOUT_MSG = 'Timed out waiting for XMLHTTPRequests to finish.'

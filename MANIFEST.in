@@ -1,1 +1,1 @@
-include seltest/ext.crx
+include track-requests/*

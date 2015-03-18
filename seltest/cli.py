@@ -5,7 +5,7 @@ Usage:
   sel test [options] <path>
   sel update [options] <path>
   sel list [options] <path>
-  sel interactive
+  sel interactive (chrome | firefox)
   sel --version
 
 Options:
@@ -107,9 +107,14 @@ def main(args=None):
         print('Starting interactive browsing session...')
         print('(Use the `driver` variable to control the browser)')
         from selenium import webdriver
-        options = webdriver.ChromeOptions()
-        options.add_extension(seltest.CHROME_EXT_PATH)
-        driver = webdriver.Chrome(chrome_options=options)
+        if args['chrome']:
+            options = webdriver.ChromeOptions()
+            options.add_extension(seltest.CHROME_EXT_PATH)
+            driver = webdriver.Chrome(chrome_options=options)
+        elif args['firefox']:
+            profile = webdriver.FirefoxProfile()
+            profile.add_extension(seltest.FIREFOX_EXT_PATH)
+            driver = webdriver.Firefox(firefox_profile=profile)
         try:
             import IPython
             IPython.embed()
