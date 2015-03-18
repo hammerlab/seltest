@@ -6,6 +6,6 @@ from seltest import (Base, BaseMeta, url, waitfor, CHROME, FIREFOX,
 import seltest
 
 __author__ = 'Isaac Hodes <isaachodes@gmail.com>'
-__version__ = '0.0.23'
+__version__ = '0.0.25'
 
 __all__ = ['Base', 'url', 'waitfor']

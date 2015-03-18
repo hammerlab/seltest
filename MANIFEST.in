@@ -1,2 +1,1 @@
-include track-requests/chrome.crx
-include track-requests/firefoxtrack.xpi
+graft track-requests
