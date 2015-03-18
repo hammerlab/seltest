@@ -105,6 +105,7 @@ def main(args=None):
 
     if args['interactive']:
         print('Starting interactive browsing session...')
+        print('(Use the `driver` variable to control the browser)')
         from selenium import webdriver
         options = webdriver.ChromeOptions()
         options.add_extension(seltest.CHROME_EXT_PATH)
