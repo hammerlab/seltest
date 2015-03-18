@@ -24,12 +24,15 @@ Seltest, the saltiest tests.
 
 Usage:
   sel test [options] <path>
+  sel update [options] <path>
   sel list [options] <path>
+  sel interactive (chrome | firefox)
   sel --version
 
 Options:
   -h --help                      Show this screen.
   --version                      Show version.
+  -v                             Verbose mode.
   -f FILTER --filter FILTER      Only operate on tests matching regexp FILTER.
                                  Can be a comma-separated list of names.
   -c NAME --classname NAME       Only operate on test classes named NAME.
