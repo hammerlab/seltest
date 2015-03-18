@@ -43,37 +43,40 @@ Options:
 
 Assuming we have the server we want to test at `localhost:5001`, we might write the below.
 
-We could run the tests with `selt test /directory/containing/test/`.
+We could run the tests with `selt test tests/directory`, or get info about the
+tests that would be run with, say, a class filter:
+`selt list -vc runs tests/directory`.
 
 ```python
 # test.py
 # -*- coding: utf-8 -*-
 from seltest import url, waitfor, Base
 
-PORT = 5001
-BASE = 'localhost:{}'.format(PORT)
+BASE = 'localhost:5000'
 
 
 class Website(Base):
-    @url(BASE + '/about')
+    base_url = BASE
+    @url('/about')
     def about_page(self, driver): pass
 
-    @url(BASE + '/comments')
+    @url('/comments')
     def comments(self, driver): pass
 
 
 class Runs(Base):
-    @url(BASE)
-    def runs_page(self, driver): pass
+    base_url = BASE
 
-    @url(BASE)
+    def page(self, driver):
+        """Shows the default runs page."""
+        pass
+
     @waitfor('div.p#status', text='ready')
-    def runs_info(self, driver):
+    def info(self, driver):
         run = driver.find_element_by_css_selector('tr.run')
         run.click()
 
-    @url(BASE)
-    def runs_bams(self, driver):
+    def bams(self, driver):
         bam_btn_sel = 'div.project:last-child .project-stats a:first-child'
         bams = driver.find_element_by_css_selector(bam_btn_sel)
         bams.click()
