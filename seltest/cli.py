@@ -118,7 +118,7 @@ def main(args=None):
         try:
             import IPython
             IPython.embed()
-        except NameError:
+        except ImportError:
             print('Using default Python REPL: recommend downloading IPython'
                   'for a better interactive experience')
             import code
