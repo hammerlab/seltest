@@ -3,6 +3,7 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.common.exceptions import (WebDriverException,
                                         NoSuchElementException)
+from selenium.webdriver.common.action_chains import ActionChains
 
 import hashlib
 import os
@@ -79,6 +80,7 @@ class Base(object):
             self._update_screenshot(name, image_dir)
 
     def _prepare_page(self, test):
+        self._reset_mouse_position()
         name, url = self._name_and_url(test)
         self.driver.get(url)
         test(self, self.driver)
@@ -107,6 +109,11 @@ class Base(object):
         name = test_dict['__name']
         url = test_dict['__url']
         return name, url
+
+    def _reset_mouse_position(self, offset=-10000000):
+        action = ActionChains(self.driver)
+        action.move_by_offset(offset, offset)
+        action.perform()
 
     def _wait_for_ajax(self):
         self.driver.implicitly_wait(0)

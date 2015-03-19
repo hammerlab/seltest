@@ -174,9 +174,10 @@ def _get_args():
 
     args = docopt.docopt(__doc__, version=seltest.__version__)
 
-    config_path = _expand_path(args['--config'] or _find_config())
+    config_path = args['--config'] or _find_config()
     config = {}
     if config_path:
+        config_path = _expand_path(config_path)
         # allow_no_value so we can write `-v`, not `-v=True`
         cp = ConfigParser(allow_no_value=True)
         cp.read(config_path)
