@@ -5,7 +5,7 @@ Usage:
   sel test [options] <path>
   sel update [options] <path>
   sel list [options] <path>
-  sel interactive (chrome | firefox)
+  sel interactive [options]
   sel --version
 
 Options:
@@ -17,12 +17,13 @@ Options:
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
   -d NAME --driver NAME          Driver/Browser to run with. Can be one of
-                                 chrome, firefox. [default: chrome]
+                                 chrome, firefox. Defaults to firefox.
   --firefox-path                 Path to Firefox binary, if you don't want to
                                  use the default.
   -o PATH --output PATH          Path where images will be saved; default is <path>.
   --config                       Path to config file. Default is to first look
                                  at ./.seltestrc, and then ~/.seltestrc
+  --list-config                  Print out the current configuration being used.
 """
 import __init__ as seltest
 
@@ -33,6 +34,11 @@ import os
 import re
 from selenium import webdriver
 import sys
+
+
+DEFAULTS = {
+    '--driver': 'firefox'
+}
 
 
 def _get_modules_from_path(path):
@@ -151,6 +157,15 @@ def _find_config():
         return home_config_path
 
 
+def _merge_config_dicts(dct1, dct2):
+    """
+    Return new dict created by merging two dicts, giving dct1 priority over
+    dct2, but giving truthy values in dct2 priority over falsey values in dct1.
+    """
+    return {str(key): dct1.get(key) or dct2.get(key)
+            for key in set(dct1) | set(dct2)}
+
+
 def _get_args():
     try:  # py2
         from ConfigParser import ConfigParser
@@ -162,15 +177,16 @@ def _get_args():
     config_path = _expand_path(args['--config'] or _find_config())
     config = {}
     if config_path:
-        # allow_no_value so we can write `--force`, not `--force=True`
+        # allow_no_value so we can write `-v`, not `-v=True`
         cp = ConfigParser(allow_no_value=True)
         cp.read(config_path)
-        defaults = cp.items('arguments')
+        # this allows -v to mean -v=True, not -v=None
         config = dict((key, True if value is None else value)
-                      for key, value in defaults)
+                      for key, value in cp.items('arguments'))
 
-    return dict((str(key), args.get(key) or config.get(key))
-                for key in set(args) | set(config))
+    config = _merge_config_dicts(DEFAULTS, config)
+    config = _merge_config_dicts(args, config)
+    return config
 
 
 def _create_driver(args):
@@ -210,9 +226,22 @@ def _get_image_output_path(args):
     return path
 
 
+def _list_config(args):
+    for key, val in args.iteritems():
+        if key.startswith('--'):
+            if val is True:
+                print('{}'.format(key))
+            if val is not None:
+                print('{}={}'.format(key, val))
+
+
 def main(args=None):
     if args is None:
         args = _get_args()
+
+    if args['--list-config']:
+        _list_config(args)
+        sys.exit(0)
 
     passes = True
 
@@ -221,7 +250,7 @@ def main(args=None):
         driver = _create_driver(args)
 
     if args['interactive']:
-        _start_interative_session(driver)
+        _start_interactive_session(driver)
     else:
         classes = _get_filtered_classes_to_run(args)
         image_path = _get_image_output_path(args)
