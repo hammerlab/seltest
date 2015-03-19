@@ -8,7 +8,7 @@ except (IOError, ImportError):
 
 
 setup(name='seltest',
-      version='0.0.37',
+      version='0.0.38',
       description='A perceptual diff testing framework for the fastest comprehensive tests you can write and run.',
       long_description=description,
       author='Isaac Hodes',

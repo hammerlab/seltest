@@ -70,20 +70,24 @@ class Base(object):
         self.driver.implicitly_wait(10)
         return super(Base, self).__init__()
 
-    def run(self, image_dir):
+    def run(self, image_dir, wait=None):
         passes = True
         tests = type(self).__dict__['__test_methods']
         for test in tests:
             name, url = self._prepare_page(test)
             if not self._screenshot_and_diff(name, image_dir):
                 passes = False
+            if wait:
+                time.sleep(float(wait))
         return passes
 
-    def update(self, image_dir):
+    def update(self, image_dir, wait=None):
         tests = type(self).__dict__['__test_methods']
         for test in tests:
             name, url = self._prepare_page(test)
             self._update_screenshot(name, image_dir)
+            if wait:
+                time.sleep(float(wait))
 
     def _prepare_page(self, test):
         self._reset_mouse_position()

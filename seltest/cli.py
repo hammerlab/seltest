@@ -24,6 +24,9 @@ Options:
   --config                       Path to config file. Default is to first look
                                  at ./.seltestrc, and then ~/.seltestrc
   --list-config                  Print out the current configuration being used.
+  --wait SECONDS                 Wait SECONDS between each test. Useful for
+                                 debugging tests and manually monitoring them.
+                                 Defaults to 0.
 """
 import __init__ as seltest
 
@@ -261,12 +264,13 @@ def main(args=None):
             print 'Running tests...'
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                passes = Test(driver).run(image_dir=image_path)
+                passes = Test(driver).run(image_dir=image_path,
+                                          wait=args['--wait'])
         elif args['update']:
             print 'Updating images...'
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                Test(driver).update(image_dir=image_path)
+                Test(driver).update(image_dir=image_path, wait=args['--wait'])
         elif args['list']:
             print 'All matched tests:'
             for Test in classes:
