@@ -20,6 +20,7 @@ Options:
                                  chrome, firefox. [default: chrome]
   --firefox-path                 Path to Firefox binary, if you don't want to
                                  use the default.
+  -o PATH --output PATH          Path where images will be saved; default is <path>.
   --config                       Path to config file. Default is to first look
                                  at ./.seltestrc, and then ~/.seltestrc
 """
@@ -38,11 +39,11 @@ def _get_modules_from_path(path):
     """
     Return list of (imported) modules from list of filenames on path.
     """
-    os.chdir(path)
+    path = _expand_path(path)
     filenames = [f for f in os.listdir(path)
                  if os.path.isfile(os.path.join(path, f)) and f.startswith('test')
                  and f.endswith('.py')]
-    sys.path = ['.'] + sys.path
+    sys.path = [path] + sys.path
     return [importlib.import_module(m.split('.')[0]) for m in filenames]
 
 
@@ -106,7 +107,7 @@ def _filter_tests(classes, args):
         def pred(name):
             return any(f.search(name) for f in test_name_res)
         for cls in classes:
-            cls = filter_test_methods(cls, pred)
+            cls = _filter_test_methods(cls, pred)
     return classes
 
 
@@ -115,7 +116,7 @@ def _get_filtered_classes_to_run(args):
     Return list of classes with all tests filtered out that don't match
     criteria.
     """
-    path = args['<path>']
+    path = _expand_path(args['<path>'])
     modules = _get_modules_from_path(path)
     classes = _get_test_classes_from_modules(modules)
     classes = _filter_classes(classes, args)
@@ -136,6 +137,10 @@ def _start_interactive_session(driver):
         code.interact(local={'driver': driver})
 
 
+def _expand_path(path):
+    return os.path.expandvars(os.path.expanduser(path))
+
+
 def _find_config():
     seltest_rc = '.seltestrc'
     local_config_path = os.path.join(os.getcwd(), seltest_rc)
@@ -154,7 +159,7 @@ def _get_args():
 
     args = docopt.docopt(__doc__, version=seltest.__version__)
 
-    config_path = args['--config'] or _find_config()
+    config_path = _expand_path(args['--config'] or _find_config())
     config = {}
     if config_path:
         # allow_no_value so we can write `--force`, not `--force=True`
@@ -181,7 +186,7 @@ def _create_driver(args):
         binary = None
         if args['--firefox-path']:
             binary = webdriver.firefox.firefox_binary.FirefoxBinary(
-                os.path.expanduser(os.path.expandvars(args['--firefox-path'])))
+                _expand_path(args['--firefox-path']))
             driver = webdriver.Firefox(
                 firefox_profile=profile, firefox_binary=binary)
         else:
@@ -190,6 +195,19 @@ def _create_driver(args):
         print('No driver with name {}, try chrome or firefox.'.format(driver))
         sys.exit(1)
     return driver
+
+
+def _get_image_output_path(args):
+    """
+    Return the relative path in which the generated screnshots should be saved.
+    """
+    if args['--output']:
+        path = _expand_path(args['--output'])
+    else:
+        path = _expand_path(args['<path>'])
+    if not (os.path.isdir(path) and os.path.exists(path)):
+        sys.exit('Image directory doesn\'t exist: {}'.format(path))
+    return path
 
 
 def main(args=None):
@@ -206,16 +224,19 @@ def main(args=None):
         _start_interative_session(driver)
     else:
         classes = _get_filtered_classes_to_run(args)
+        image_path = _get_image_output_path(args)
+        if not args['list'] and args['-v']:
+            print('Saving images to {}'.format(image_path))
         if args['test']:
             print 'Running tests...'
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                passes = Test(driver).run(image_dir=os.getcwd())
+                passes = Test(driver).run(image_dir=image_path)
         elif args['update']:
             print 'Updating images...'
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                Test(driver).update(image_dir=os.getcwd())
+                Test(driver).update(image_dir=image_path)
         elif args['list']:
             print 'All matched tests:'
             for Test in classes:
