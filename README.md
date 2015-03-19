@@ -26,7 +26,7 @@ Usage:
   sel test [options] <path>
   sel update [options] <path>
   sel list [options] <path>
-  sel interactive (chrome | firefox)
+  sel interactive [options]
   sel --version
 
 Options:
@@ -38,11 +38,16 @@ Options:
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
   -d NAME --driver NAME          Driver/Browser to run with. Can be one of
-                                 chrome, firefox. [default: chrome]
+                                 chrome, firefox. Defaults to firefox.
   --firefox-path                 Path to Firefox binary, if you don't want to
                                  use the default.
+  -o PATH --output PATH          Path where images will be saved; default is <path>.
   --config                       Path to config file. Default is to first look
                                  at ./.seltestrc, and then ~/.seltestrc
+  --list-config                  Print out the current configuration being used.
+  --wait SECONDS                 Wait SECONDS between each test. Useful for
+                                 debugging tests and manually monitoring them.
+                                 Defaults to 0.
 ```
 
 # Example
@@ -100,7 +105,7 @@ Note: the `[arguments]` heading is required.
 
 ```
 [arguments]
---firefox-path ~/somewhere/there/is/firefox-bin
+--firefox-path=~/somewhere/there/is/firefox-bin
 -v
 ```
 
