@@ -7,5 +7,5 @@ import seltest
 
 __all__ = ['Base', 'url', 'waitfor']
 __author__ = 'Isaac Hodes <isaachodes@gmail.com>'
-__version__ = '0.0.36'
+__version__ = '0.0.37'
 

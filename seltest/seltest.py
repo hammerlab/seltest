@@ -36,6 +36,8 @@ class BaseMeta(type):
                 BaseMeta._update_url_with_base_url(value, cls_attrs)
                 prefix = cls_name.lower()
                 setattr(value, '__name', ('-').join([prefix, attr]))
+        cls_attrs['__test_methods'] = BaseMeta._sort_test_methods(
+            cls_attrs['__test_methods'])
         return super(
             BaseMeta, cls).__new__(cls, cls_name, cls_bases, cls_attrs)
 
@@ -50,6 +52,10 @@ class BaseMeta(type):
         is_method = type(value) == types.FunctionType
         underscored = attr.startswith('_')
         return is_method and not underscored
+
+    @classmethod
+    def _sort_test_methods(cls, methods):
+        return sorted(methods, key=lambda m: getattr(m, '__name'))
 
 
 class Base(object):
