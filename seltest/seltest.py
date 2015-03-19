@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import PIL.Image as Image
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.common.exceptions import (WebDriverException,
@@ -186,8 +187,8 @@ def _ajax_is_complete(driver):
 def _are_same_files(*args):
     hashed = None
     for path in args:
-        with open(path) as f:
-            next_hashed = hashlib.md5(f.read()).hexdigest()
+        with Image.open(path) as i:
+            next_hashed = hashlib.sha512(i.tostring()).hexdigest()
             if hashed is not None:
                 if next_hashed != hashed:
                     return False

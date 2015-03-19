@@ -2,3 +2,4 @@ selenium
 nose
 docopt
 pypandoc
+Pillow
