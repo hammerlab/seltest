@@ -3,3 +3,5 @@ nose
 docopt
 pypandoc
 Pillow
+requests
+flask

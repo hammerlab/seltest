@@ -1,9 +1,0 @@
-{
-  "name": "firefoxtrack",
-  "title": "firefoxtrack",
-  "id": "jid1-Aw1dFxqNEHbENg",
-  "description": "Track pending requests in a global var for use by seltest.",
-  "author": "Isaac Hodes <isaachodes@gmail.com>",
-  "license": "Apache 2.0",
-  "version": "1.0"
-}

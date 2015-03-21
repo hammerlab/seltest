@@ -17,7 +17,8 @@ Options:
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
   -d NAME --driver NAME          Driver/Browser to run with. Can be one of
-                                 chrome, firefox. Defaults to firefox.
+                                 chrome, firefox, phantomjs, ie, safari.
+                                 Defaults to firefox.
   --firefox-path                 Path to Firefox binary, if you don't want to
                                  use the default.
   -o PATH --output PATH          Path where images will be saved; default is <path>.
@@ -29,13 +30,16 @@ Options:
                                  Defaults to 0.
 """
 import __init__ as seltest
+import proxy
 
 import docopt
 
 import importlib
+import multiprocessing
 import os
 import re
 from selenium import webdriver
+import socket
 import sys
 
 
@@ -196,25 +200,68 @@ def _get_args():
 def _create_driver(args):
     driver = args['--driver'].lower()
     if driver == 'chrome':
-        options = webdriver.ChromeOptions()
-        options.add_extension(seltest.CHROME_EXT_PATH)
-        driver = webdriver.Chrome(chrome_options=options)
+        driver = webdriver.Chrome()
     elif driver == 'firefox':
         profile = webdriver.FirefoxProfile()
-        profile.add_extension(seltest.FIREFOX_EXT_PATH)
         profile.set_preference('app.update.auto', False)
         binary = None
         if args['--firefox-path']:
             binary = webdriver.firefox.firefox_binary.FirefoxBinary(
                 _expand_path(args['--firefox-path']))
-            driver = webdriver.Firefox(
-                firefox_profile=profile, firefox_binary=binary)
+            driver = webdriver.Firefox(firefox_binary=binary,
+                                       firefox_profile=profile)
         else:
             driver = webdriver.Firefox(firefox_profile=profile)
+    elif driver == 'phantomjs':
+        driver = webdriver.PhantomJS()
+    elif driver == 'safari':
+        driver = webdriver.Safari()
+    elif driver == 'ie':
+        driver = webdriver.Ie()
     else:
-        print('No driver with name {}, try chrome or firefox.'.format(driver))
+        msg = ('No driver with name {}, try one of chrome, firefox,'
+               'phantomjs, safari, ie.')
+        print(msg.format(driver))
         sys.exit(1)
     return driver
+
+
+class RedirectStdStreams(object):
+    # http://stackoverflow.com/questions/6796492/temporarily-redirect-stdout-stderr
+    def __init__(self, stdout=None, stderr=None):
+        self._stdout = stdout or sys.stdout
+        self._stderr = stderr or sys.stderr
+
+    def __enter__(self):
+        self.old_stdout, self.old_stderr = sys.stdout, sys.stderr
+        self.old_stdout.flush(); self.old_stderr.flush()
+        sys.stdout, sys.stderr = self._stdout, self._stderr
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._stdout.flush(); self._stderr.flush()
+        sys.stdout = self.old_stdout
+        sys.stderr = self.old_stderr
+
+
+def _start_reverse_proxy():
+    # This socket business is to ensure we get a free port to bind to.
+    sock = socket.socket()
+    sock.bind(('', 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    # Now we spin off our reverse proxy into another process, so that we can run
+    # tests through it.
+    def run_server(port):
+        devnull = open(os.devnull, 'w')
+        with RedirectStdStreams(stdout=devnull, stderr=devnull):
+            proxy.app.run('localhost', port=port)
+    p = multiprocessing.Process(target=run_server, args=(port,))
+    p.start()
+    return p, port
+
+
+def _kill_reverse_proxy(p):
+    p.terminate()
 
 
 def _get_image_output_path(args):
@@ -239,20 +286,7 @@ def _list_config(args):
                 print('{}={}'.format(key, val))
 
 
-def main(args=None):
-    if args is None:
-        args = _get_args()
-
-    if args['--list-config']:
-        _list_config(args)
-        sys.exit(0)
-
-    passes = True
-
-    driver = None
-    if not args['list']:
-        driver = _create_driver(args)
-
+def _run(args, driver):
     if args['interactive']:
         _start_interactive_session(driver)
     else:
@@ -262,15 +296,22 @@ def main(args=None):
             print('Saving images to {}'.format(image_path))
         if args['test']:
             print 'Running tests...'
+            p, port = _start_reverse_proxy()
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
                 passes = Test(driver).run(image_dir=image_path,
+                                          proxy_port=port,
                                           wait=args['--wait'])
+            _kill_reverse_proxy(p)
+            return passes
         elif args['update']:
             print 'Updating images...'
+            p, port = _start_reverse_proxy()
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                Test(driver).update(image_dir=image_path, wait=args['--wait'])
+                Test(driver).update(image_path, port,
+                                    wait=args['--wait'])
+            _kill_reverse_proxy(p)
         elif args['list']:
             print 'All matched tests:'
             for Test in classes:
@@ -280,8 +321,25 @@ def main(args=None):
                     print('   {}'.format(test.__name))
                     if args['-v'] and test.__doc__:
                         print('     "{}"').format(test.__doc__)
+    return True
 
-    if driver:
+
+def main(args=None):
+    if args is None:
+        args = _get_args()
+
+    if args['--list-config']:
+        _list_config(args)
+        sys.exit(0)
+
+    driver = None
+    if not args['list']:
+        driver = _create_driver(args)
+
+    passes = False
+    try:
+        passes = _run(args, driver)
+    finally:
         driver.quit()
 
     if passes:

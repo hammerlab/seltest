@@ -3,7 +3,8 @@ import PIL.Image as Image
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select, WebDriverWait
 from selenium.common.exceptions import (WebDriverException,
-                                        NoSuchElementException)
+                                        NoSuchElementException,
+                                        TimeoutException)
 from selenium.webdriver.common.action_chains import ActionChains
 
 import hashlib
@@ -13,30 +14,27 @@ import time
 import types
 
 
-CHROME_EXT_PATH = pkg_resources.resource_filename(
-    __name__, 'track-requests/chrome.crx')
-FIREFOX_EXT_PATH = pkg_resources.resource_filename(
-    __name__, 'track-requests/firefoxtrack.xpi')
-
 AJAX_TIMEOUT = 10  # seconds
 AJAX_TIMEOUT_MSG = 'Timed out waiting for XMLHTTPRequests to finish.'
 GET_PENDING_REQUESTS_JS = 'return window.__SELTEST_PENDING_REQUESTS;'
 WAIT_TIMEOUT = 10  # seconds
 WAIT_TIMEOUT_MSG = 'Timed out waiting for element {}.'
 
-DEFAULT_WINDOW_SIZE = [2000, 1000]
+DEFAULT_WINDOW_SIZE = [2000, 1800]
 
 
 class BaseMeta(type):
     """Base metaclass that tracks all test functions."""
+
     def __new__(cls, cls_name, cls_bases, cls_attrs):
         cls_attrs['__test_methods'] = []
         for attr, value in cls_attrs.iteritems():
             if BaseMeta._is_a_test_method(attr, value):
                 cls_attrs['__test_methods'].append(value)
                 BaseMeta._update_url_with_base_url(value, cls_attrs)
-                prefix = cls_name.lower()
-                setattr(value, '__name', ('-').join([prefix, attr]))
+                name = '{}_{}'.format(cls_name.lower(),
+                                      '-'.join(attr.split('_')))
+                setattr(value, '__name', name)
         cls_attrs['__test_methods'] = BaseMeta._sort_test_methods(
             cls_attrs['__test_methods'])
         return super(
@@ -65,40 +63,47 @@ class Base(object):
     window_size = DEFAULT_WINDOW_SIZE
 
     def __init__(self, driver):
+        self.__test_methods = type(self).__dict__['__test_methods']
         self.base_url = ''
         self.driver = driver
         self.driver.set_window_size(*self.window_size)
         self.driver.implicitly_wait(10)
         return super(Base, self).__init__()
 
-    def run(self, image_dir, wait=None):
+    def run(self, image_dir, proxy_port, wait=None):
         passes = True
-        tests = type(self).__dict__['__test_methods']
-        for test in tests:
-            name, url = self._prepare_page(test)
+        for test in self.__test_methods:
+            name, url = self._name_and_url(test)
+            try:
+                self._prepare_page(test, name, url, proxy_port)
+            except TimeoutException, e:
+                print '  ✗ {}: test timed out: {}'.format(name, e)
+                return None
             if not self._screenshot_and_diff(name, image_dir):
                 passes = False
             if wait:
                 time.sleep(float(wait))
         return passes
 
-    def update(self, image_dir, wait=None):
-        tests = type(self).__dict__['__test_methods']
-        for test in tests:
-            name, url = self._prepare_page(test)
+    def update(self, image_dir, proxy_port, wait=None):
+        for test in self.__test_methods:
+            name, url = self._name_and_url(test)
+            try:
+                self._prepare_page(test, name, url, proxy_port)
+            except TimeoutException, e:
+                print '  ✗ {}: test timed out: {}'.format(name, e)
+                return None
             self._update_screenshot(name, image_dir)
             if wait:
                 time.sleep(float(wait))
 
-    def _prepare_page(self, test):
+    def _prepare_page(self, test, name, url, proxy_port):
         self._reset_mouse_position()
-        name, url = self._name_and_url(test)
-        self.driver.get(url)
+        self.driver.get('http://localhost:{}/{}'.format(proxy_port, url))
         test(self, self.driver)
         self._handle_waitfors(test)
         time.sleep(0.1)  # Give JS a chance to fire any other AJAX.
         self._wait_for_ajax()
-        return name, url
 
     def _is_element_present(self, sel, text=None):
         # Disable implicit wait at first so we don't double-wait, and reenable
@@ -116,9 +121,8 @@ class Base(object):
             self.driver.implicitly_wait(WAIT_TIMEOUT)
 
     def _name_and_url(self, test):
-        test_dict = test.__dict__
-        name = test_dict['__name']
-        url = test_dict['__url']
+        name = getattr(test, '__name')
+        url = getattr(test, '__url')
         return name, url
 
     def _reset_mouse_position(self, offset=-10000000):

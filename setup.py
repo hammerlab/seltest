@@ -8,7 +8,7 @@ except (IOError, ImportError):
 
 
 setup(name='seltest',
-      version='0.0.39',
+      version='0.0.40',
       description='A perceptual diff testing framework for the fastest comprehensive tests you can write and run.',
       long_description=description,
       author='Isaac Hodes',
@@ -16,11 +16,11 @@ setup(name='seltest',
       url='https://github.com/ihodes/seltest/',
       packages=['seltest'],
       include_package_data=True,
-      package_data={'seltest': ['track-requests/chrome.crx',
-                                'track-requests/firefoxtrack.xpi']},
       install_requires=['selenium',
                         'docopt',
-                        'Pillow'],
+                        'Pillow',
+                        'flask',
+                        'requests'],
       entry_points={
           'console_scripts': [
              'sel = seltest.cli:main',
