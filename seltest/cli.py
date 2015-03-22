@@ -16,18 +16,28 @@ Options:
                                  Can be a comma-separated list of names.
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
-  -d NAME --driver NAME          Driver/Browser to run with. Can be one of
-                                 chrome, firefox, phantomjs, ie, safari.
+  -b NAME --browser NAME         Browser to run with. Can be one of chrome,
+                                 firefox, phantomjs, ie, safari.
                                  Defaults to firefox.
-  --firefox-path                 Path to Firefox binary, if you don't want to
-                                 use the default.
   -o PATH --output PATH          Path where images will be saved; default is <path>.
-  --config                       Path to config file. Default is to first look
-                                 at ./.seltestrc, and then ~/.seltestrc
+  --config                       Specify path to config file. Default is to first
+                                 look at ./.seltestrc, and then ~/.seltestrc
   --list-config                  Print out the current configuration being used.
   --wait SECONDS                 Wait SECONDS between each test. Useful for
                                  debugging tests and manually monitoring them.
                                  Defaults to 0.
+  --firefox-path PATH            Path to Firefox binary, if you don't want to
+                                 use the default.
+  --chrome-path PATH             Path to Chrome binary, if you don't want to
+                                 use the default.
+  --phantom-path PATH            Path to PhantomJS binary, if you don't want
+                                 to use the default.
+  --safari-path PATH             Path to Safari binary, if you don't want to
+                                 use the default.
+  --ie-path PATH                 Path to Interet Explorer binary, if you don't
+                                 want to use the default.
+  --remote-command-executor URL  URL of the Selenium Remote Server to connect to.
+                                 Sets the driver to RemoteServer.
 """
 import __init__ as seltest
 import proxy
@@ -39,12 +49,13 @@ import multiprocessing
 import os
 import re
 from selenium import webdriver
+from selenium.webdriver.common.desired_capabilities import DesiredCapabilities
 import socket
 import sys
 
 
 DEFAULTS = {
-    '--driver': 'firefox'
+    '--browser': 'firefox'
 }
 
 
@@ -179,7 +190,9 @@ def _get_args():
     except ImportError:  # py3
         from configparser import ConfigParser
 
-    args = docopt.docopt(__doc__, version=seltest.__version__)
+    args = docopt.docopt(__doc__,
+                         version=seltest.__version__,
+                         argv=sys.argv[1:])
 
     config_path = args['--config'] or _find_config()
     config = {}
@@ -198,32 +211,48 @@ def _get_args():
 
 
 def _create_driver(args):
-    driver = args['--driver'].lower()
-    if driver == 'chrome':
-        driver = webdriver.Chrome()
-    elif driver == 'firefox':
+    config = {}
+    browser = args['--browser'].lower()
+    if args['--remote-command-executor']:
+        try:
+            capabilities = getattr(DesiredCapabilities, browser.upper())
+        except AttributeError, e:
+            sys.exit('No browser capability for {}'.format(browser))
+        config = {"command_executor": args['--remote-command-executor'],
+                  "desired_capabilities": capabilities}
+        driver = webdriver.Remote
+    elif browser == 'chrome':
+        if args['--chrome-path']:
+            options = webdriver.ChromeOptions()
+            options.binary_location = _expand_path(args['--chrome-path'])
+            config['chrome_options'] = options
+        driver = webdriver.Chrome
+    elif browser == 'firefox':
         profile = webdriver.FirefoxProfile()
         profile.set_preference('app.update.auto', False)
-        binary = None
+        config['firefox_profile'] = profile
         if args['--firefox-path']:
             binary = webdriver.firefox.firefox_binary.FirefoxBinary(
                 _expand_path(args['--firefox-path']))
-            driver = webdriver.Firefox(firefox_binary=binary,
-                                       firefox_profile=profile)
-        else:
-            driver = webdriver.Firefox(firefox_profile=profile)
-    elif driver == 'phantomjs':
-        driver = webdriver.PhantomJS()
-    elif driver == 'safari':
-        driver = webdriver.Safari()
-    elif driver == 'ie':
-        driver = webdriver.Ie()
+            config['firefox_binary'] = binary
+        driver = webdriver.Firefox
+    elif browser == 'phantomjs':
+        if args['--phantomjs-path']:
+            config['executable_path'] = args['--phantomjs-path']
+        driver = webdriver.PhantomJS
+    elif browser == 'safari':
+        if args['--safari-path']:
+            config['executable_path'] = args['--safari-path']
+        driver = webdriver.Safari
+    elif browser == 'ie':
+        if args['--ie-path']:
+            config['executable_path'] = args['--ie-path']
+        driver = webdriver.Ie
     else:
         msg = ('No driver with name {}, try one of chrome, firefox,'
                'phantomjs, safari, ie.')
-        print(msg.format(driver))
-        sys.exit(1)
-    return driver
+        sys.exit(msg.format(browser))
+    return driver(**config)
 
 
 class RedirectStdStreams(object):

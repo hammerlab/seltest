@@ -13,5 +13,5 @@ done
 DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 
 export PYTHONPATH=$DIR
-python -m seltest.cli $@
+python -m seltest.cli "$@"
 

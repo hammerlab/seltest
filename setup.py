@@ -8,8 +8,8 @@ except (IOError, ImportError):
 
 
 setup(name='seltest',
-      version='0.0.40',
-      description='A perceptual diff testing framework for the fastest comprehensive tests you can write and run.',
+      version='0.1.0',
+      description='A perceptual difference testing framework for writing the easiest, most comprehensive tests you can run.',
       long_description=description,
       author='Isaac Hodes',
       author_email='isaachodes@gmail.com',
