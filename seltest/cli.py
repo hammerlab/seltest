@@ -30,7 +30,7 @@ Options:
                                  use the default.
   --chrome-path PATH             Path to Chrome binary, if you don't want to
                                  use the default.
-  --phantom-path PATH            Path to PhantomJS binary, if you don't want
+  --phantomjs-path PATH          Path to PhantomJS binary, if you don't want
                                  to use the default.
   --safari-path PATH             Path to Safari binary, if you don't want to
                                  use the default.
