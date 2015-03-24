@@ -15,10 +15,10 @@ import types
 
 
 AJAX_TIMEOUT = 10  # seconds
-AJAX_TIMEOUT_MSG = 'Timed out waiting for XMLHTTPRequests to finish.'
+AJAX_TIMEOUT_MSG = u'Timed out waiting for XMLHTTPRequests to finish.'
 GET_PENDING_REQUESTS_JS = 'return window.__SELTEST_PENDING_REQUESTS;'
 WAIT_TIMEOUT = 10  # seconds
-WAIT_TIMEOUT_MSG = 'Timed out waiting for element {}.'
+WAIT_TIMEOUT_MSG = u'Timed out waiting for: {}.'
 
 DEFAULT_WINDOW_SIZE = [2000, 1800]
 
@@ -32,6 +32,7 @@ class BaseMeta(type):
             if BaseMeta._is_a_test_method(attr, value):
                 cls_attrs['__test_methods'].append(value)
                 BaseMeta._update_url_with_base_url(value, cls_attrs)
+                BaseMeta._update_waitfors_with_base(value, cls_attrs)
                 name = '{}_{}'.format(cls_name.lower(),
                                       '-'.join(attr.split('_')))
                 setattr(value, '__name', name)
@@ -45,6 +46,20 @@ class BaseMeta(type):
         if 'base_url' in cls_attrs:
             full_url = cls_attrs['base_url'] + getattr(value, '__url', '')
             setattr(value, '__url', full_url)
+
+    @classmethod
+    def _update_waitfors_with_base(meta, value, cls_attrs):
+        dontwaits = getattr(value, '__dontwait', [])
+        if 'wait_for' in cls_attrs:
+            waitfor = cls_attrs['wait_for']
+            if not waitfor['css_selector'] in dontwaits:
+                setattr(value, '__waitfors',
+                        [waitfor] + getattr(value, '__waitfors', []))
+        elif 'wait_fors' in cls_attrs:
+            waitfors = [w for w in cls_attrs['wait_fors']
+                        if w['css_selector'] not in dontwaits]
+            setattr(value, '__waitfors',
+                    waitfors + getattr(value, '__waitfors', []))
 
     @classmethod
     def _is_a_test_method(meta, attr, value):
@@ -105,20 +120,27 @@ class Base(object):
         time.sleep(0.1)  # Give JS a chance to fire any other AJAX.
         self._wait_for_ajax()
 
-    def _is_element_present(self, sel, text=None):
-        # Disable implicit wait at first so we don't double-wait, and reenable
-        # at the end.
-        self.driver.implicitly_wait(0)
-        try:
-            el = self.driver.find_element_by_css_selector(sel)
-            if text:
-                return el.text == text
-            else:
-                return True
-        except NoSuchElementException:
-            return False
-        finally:
-            self.driver.implicitly_wait(WAIT_TIMEOUT)
+    def _are_waitfors_satisfied(self, test):
+        if not getattr(test, '__waitfors', None):
+            return True  # If there aren't any waitfors, don't wait.
+        results = []
+        for waitfor in getattr(test, '__waitfors'):
+            sel = waitfor['css_selector']  # required
+            text = waitfor.get('text')  # optional
+            classes = waitfor.get('classes')  #optional
+            try:
+                el = self.driver.find_element_by_css_selector(sel)
+                text_present = True
+                if text:
+                    text_present = el.text == text
+                has_classes = True
+                if classes:
+                    el_classes = el.get_attribute('class').split(' ')
+                    has_classes = all(c in el_classes for c in classes)
+                results.append(text_present and has_classes)
+            except NoSuchElementException:
+                return False
+        return all(results)
 
     def _name_and_url(self, test):
         name = getattr(test, '__name')
@@ -137,48 +159,61 @@ class Base(object):
         self.driver.implicitly_wait(WAIT_TIMEOUT)
 
     def _handle_waitfors(self, test):
-        test_dict = test.__dict__
-        waitfor_css_selector = test_dict.get('__waitfor_css_selector')
-        waitfor_text = test_dict.get('__waitfor_text')
-        if waitfor_css_selector:
-            WebDriverWait(self.driver, WAIT_TIMEOUT).until(
-                lambda s: self._is_element_present(waitfor_css_selector,
-                                                   text=waitfor_text),
-                WAIT_TIMEOUT_MSG.format(waitfor_css_selector))
+        self.driver.implicitly_wait(0)
+        WebDriverWait(self.driver, WAIT_TIMEOUT).until(
+            lambda s: self._are_waitfors_satisfied(test),
+            WAIT_TIMEOUT_MSG.format(self._waitfor_str(test)))
+        self.driver.implicitly_wait(WAIT_TIMEOUT)
+
+    def _waitfor_str(self, test):
+        if not getattr(test, '__waitfors', None):
+            return ''
+        waitstrs = []
+        for waitfor in getattr(test, '__waitfors'):
+            waitstr = u''
+            waitstr += waitfor['css_selector']
+            text = waitfor.get('text')
+            if text:
+                waitstr += u' (text={})'.format(text)
+            classes = waitfor.get('classes')
+            if classes:
+                waitstr += u' (classes={})'.format(' '.join(classes))
+            waitstrs.append(waitstr)
+        return u', '.join(waitstrs)
 
     def _screenshot_and_diff(self, name, image_dir):
-        old_path = '{0}/{1}.png'.format(image_dir, name)
+        old_path = u'{0}/{1}.png'.format(image_dir, name)
         if not os.path.isfile(old_path):
-            msg = '  • {0}: no screenshot found, creating for the first time.'
+            msg = u'  • {0}: no screenshot found, creating for the first time.'
             print msg.format(name)
             self.driver.save_screenshot(old_path)
             return True
         else:
-            new_path = '{0}/{1}.NEW.png'.format(image_dir, name)
+            new_path = u'{0}/{1}.NEW.png'.format(image_dir, name)
             self.driver.save_screenshot(new_path)
             if _are_same_files(new_path, old_path):
                 os.remove(new_path)
-                msg = '  ✓ {0}: no change'
+                msg = u'  ✓ {0}: no change'
                 print msg.format(name)
                 return True
             else:
-                msg = '  ✗ {0}: screenshots differ, see {1}/{0}.NEW.png'
+                msg = u'  ✗ {0}: screenshots differ, see {1}/{0}.NEW.png'
                 print msg.format(name, image_dir)
                 return False
 
     def _update_screenshot(self, name, image_dir):
-        path = '{0}/{1}.png'.format(image_dir, name)
+        path = u'{0}/{1}.png'.format(image_dir, name)
         if not os.path.isfile(path):
-            msg = '  • {0}: creating for the first time.'
+            msg = u'  • {0}: creating for the first time.'
             print msg.format(name)
         else:
-            new_path = '{0}/_{1}.png'.format(image_dir, name)
+            new_path = u'{0}/_{1}.png'.format(image_dir, name)
             self.driver.save_screenshot(new_path)
             if _are_same_files(new_path, path):
-                msg = '  ✓ {0}: no change'
+                msg = u'  ✓ {0}: no change'
                 print msg.format(name)
             else:
-                msg = '  ✗ {0}: screenshots differ, updating'
+                msg = u'  ✗ {0}: screenshots differ, updating'
                 print msg.format(name)
             os.remove(new_path)
         self.driver.save_screenshot(path)
@@ -211,14 +246,34 @@ def url(url_str=''):
     return decorator
 
 
-def waitfor(css_selector, text=None):
+def waitfor(css_selector, text=None, classes=None):
     """
     Decorator for specifying elements (selected by a CSS-style selector) to
     explicitly wait for before taking a screenshot. If text is set, wait for the
-    element to contain that text before taking the screenshot.
+    element to contain that text before taking the screenshot. If classes is
+    present, wait until the element has all classes.
     """
     def decorator(method):
-        method.__waitfor_css_selector = css_selector
-        method.__waitfor_text = text
+        if not isinstance(getattr(method, '__waitfors', None), list):
+            setattr(method, '__waitfors', [])
+        method.__waitfors.append({
+            'css_selector': css_selector,
+            'text': text,
+            'classes': classes
+        })
+        return method
+    return decorator
+
+
+def dontwaitfor(css_selector):
+    """
+    Decorator for specifying elements that should not be waited for, if they're
+    specified to be waited for in the class's `wait_for` or `wait_fors`
+    attribute. Used to override the class setting.
+    """
+    def decorator(method):
+        if not isinstance(getattr(method, '__dontwait', None), list):
+            setattr(method, '__dontwait', [])
+        method.__dontwait.append(css_selector)
         return method
     return decorator

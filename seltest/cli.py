@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Seltest, the saltiest tests.
 
@@ -155,7 +156,7 @@ def _start_interactive_session(driver):
         import IPython
         IPython.embed()
     except ImportError:
-        print('Using default Python REPL: recommend downloading IPython'
+        print('Using default Python REPL: recommend downloading IPython '
               'for a better interactive experience')
         import code
         code.interact(local={'driver': driver})
