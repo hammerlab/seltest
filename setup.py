@@ -2,13 +2,13 @@ from setuptools import setup, find_packages
 
 try:
    import pypandoc
-   description = pypandoc.convert('README.md', 'rst')
+   description = pypandoc.convert('README.md', to='rst', format='md')
 except (IOError, ImportError):
    description = ''
 
 
 setup(name='seltest',
-      version='0.1.2',
+      version='0.1.3',
       description='A perceptual difference testing framework for writing the easiest, most comprehensive tests you can run.',
       long_description=description,
       author='Isaac Hodes',
