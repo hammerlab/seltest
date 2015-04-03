@@ -119,6 +119,7 @@ class Base(object):
         self._handle_waitfors(test)
         time.sleep(0.1)  # Give JS a chance to fire any other AJAX.
         self._wait_for_ajax()
+        self._hide_elements(test)
 
     def _are_waitfors_satisfied(self, test):
         if not getattr(test, '__waitfors', None):
@@ -164,6 +165,16 @@ class Base(object):
             lambda s: self._are_waitfors_satisfied(test),
             WAIT_TIMEOUT_MSG.format(self._waitfor_str(test)))
         self.driver.implicitly_wait(WAIT_TIMEOUT)
+
+    def _hide_elements(self, test):
+        hidden_selectors = getattr(test, '__hide', [])
+        for sel in hidden_selectors:
+            self.driver.execute_script("""
+            var els = document.querySelectorAll('{}');
+            for (var i = 0; i < els.length; i++) {{
+                els[i].hidden = true;
+            }};
+            """.format(sel))
 
     def _waitfor_str(self, test):
         if not getattr(test, '__waitfors', None):
@@ -233,47 +244,3 @@ def _are_same_files(*args):
                     return False
             hashed = next_hashed
     return True
-
-
-def url(url_str=''):
-    """
-    Decorator for specifying the URL the test shoudl visit, relative to the test
-    class's `base_url`.
-    """
-    def decorator(method):
-        method.__url = url_str
-        return method
-    return decorator
-
-
-def waitfor(css_selector, text=None, classes=None):
-    """
-    Decorator for specifying elements (selected by a CSS-style selector) to
-    explicitly wait for before taking a screenshot. If text is set, wait for the
-    element to contain that text before taking the screenshot. If classes is
-    present, wait until the element has all classes.
-    """
-    def decorator(method):
-        if not isinstance(getattr(method, '__waitfors', None), list):
-            setattr(method, '__waitfors', [])
-        method.__waitfors.append({
-            'css_selector': css_selector,
-            'text': text,
-            'classes': classes
-        })
-        return method
-    return decorator
-
-
-def dontwaitfor(css_selector):
-    """
-    Decorator for specifying elements that should not be waited for, if they're
-    specified to be waited for in the class's `wait_for` or `wait_fors`
-    attribute. Used to override the class setting.
-    """
-    def decorator(method):
-        if not isinstance(getattr(method, '__dontwait', None), list):
-            setattr(method, '__dontwait', [])
-        method.__dontwait.append(css_selector)
-        return method
-    return decorator
