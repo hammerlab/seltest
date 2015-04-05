@@ -85,6 +85,15 @@ class Base(object):
         self.driver.implicitly_wait(10)
         return super(Base, self).__init__()
 
+    def hide(self, css_selector):
+        """Hide (by setting `hidden=true`) the selected elements."""
+        self.driver.execute_script("""
+            var els = document.querySelectorAll('{}');
+            for (var i = 0; i < els.length; i++) {{
+                els[i].hidden = true;
+            }};
+            """.format(css_selector))
+
     def run(self, image_dir, proxy_port, wait=None):
         passes = True
         for test in self.__test_methods:
@@ -169,12 +178,7 @@ class Base(object):
     def _hide_elements(self, test):
         hidden_selectors = getattr(test, '__hide', [])
         for sel in hidden_selectors:
-            self.driver.execute_script("""
-            var els = document.querySelectorAll('{}');
-            for (var i = 0; i < els.length; i++) {{
-                els[i].hidden = true;
-            }};
-            """.format(sel))
+            self.hide(sel)
 
     def _waitfor_str(self, test):
         if not getattr(test, '__waitfors', None):
