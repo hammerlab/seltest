@@ -108,9 +108,11 @@ class Base(object, metaclass=BaseMeta):
                 self._prepare_page(test, name, url, proxy_port)
             except TimeoutException as e:
                 print('  ✗ {}: test timed out: {}'.format(name, e))
+                passes = False
                 continue
             except AssertionError as e:
                 print('  ✗ {}: assertion failed: {}'.format(name, e))
+                passes = False
                 continue
             finally:
                 if wait:
