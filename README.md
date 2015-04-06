@@ -19,9 +19,12 @@ write a lines to test everything.
 ```python
 class Website(seltest.Base):
   base_url = 'localhost:4000'
-  def base(self, driver): pass
+
+  def base(self, driver):
+      pass
+
   def clicking_buttons(self, driver):
-    driver.select_element_by_css_selector('#my-btn').click()
+      driver.select_element_by_css_selector('#my-btn').click()
 ```
 
 And test it with `sel test .`.
@@ -54,13 +57,16 @@ Seltest will connect to your test server on `localhost:4000` and take a
 screenshot of the resulting page in Firefox (this is configurable with, say `-d
 chrome`). If it's different from the last time it took that screenshot, it'll
 let you know. Maybe the difference is what you expected. Maybe it's not. But now
-you know. Like a magic crystal ball, seltest lets you know what's up.`
+you know.
 
 Seltest waits for the page to load, AJAX requests to complete, can wait for
 specific elements or text to appear on the page. It can do anything a user
 manually running the website on any browser could do, but it does it
 automatically. That's good.
 
+# Documentation
+
+More comprehensive documentation can be found at [API.md](API.md).
 
 # Usage
 
@@ -82,17 +88,36 @@ Options:
                                  Can be a comma-separated list of names.
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
-  -d NAME --driver NAME          Driver/Browser to run with. Can be one of
-                                 chrome, firefox. Defaults to firefox.
-  --firefox-path                 Path to Firefox binary, if you don't want to
-                                 use the default.
-  -o PATH --output PATH          Path where images will be saved; default is <path>.
-  --config                       Path to config file. Default is to first look
-                                 at ./.seltestrc, and then ~/.seltestrc
-  --list-config                  Print out the current configuration being used.
+  -b NAME --browser NAME         Browser to run with. Can be one of chrome,
+                                 firefox, phantomjs, ie, safari, remote.
+                                 Defaults to firefox.
+  -o PATH --output PATH          Path where images will be saved.
+                                 Default is <path>.
+  --config                       Specify path to config file. Default is to first
+                                 look for ./.seltestrc, and then ~/.seltestrc
+  --config-profile NAME          Name of the profile to use. Inherits from the
+                                 `default` profile.
+  --config-list                  Print out the current configuration being used.
   --wait SECONDS                 Wait SECONDS between each test. Useful for
                                  debugging tests and manually monitoring them.
                                  Defaults to 0.
+  --firefox-path PATH            Path to Firefox binary, if you don't want to
+                                 use the default.
+  --chrome-path PATH             Path to Chrome binary, if you don't want to
+                                 use the default.
+  --phantomjs-path PATH          Path to PhantomJS binary, if you don't want
+                                 to use the default.
+  --safari-path PATH             Path to Safari binary, if you don't want to
+                                 use the default.
+  --ie-path PATH                 Path to Interet Explorer binary, if you don't
+                                 want to use the default.
+  --remote-command-executor URL  URL of the Selenium Remote Server to connect to.
+  --remote-browser-name NAME     Name of the browser to use with the remote
+                                 driver. (Modifies capabilities.)
+  --remote-browser-version V     Version of the browser to use with the remote
+                                 driver. (Modifies capabilities.)
+  --remote-platform-name NAME    Name of the platform to use with the remote
+                                 driver. (Modifies capabilities.)
 ```
 
 # Example
@@ -115,7 +140,7 @@ generated ones.
 # -*- coding: utf-8 -*-
 from seltest import url, waitfor, Base
 
-BASE = 'localhost:5000'
+BASE = 'localhost:5001'
 
 class Website(Base):
     base_url = BASE
@@ -157,6 +182,7 @@ that has just been opened for you.
 Use it to explore the available API, and make sure the tests you're writing are
 doing what you want them to do.
 
+
 # Config
 
 Seltest can use as defaults a config file in either `~/.seltestrc` or `./seltestrc`.
@@ -167,11 +193,16 @@ would appear: this makes it easy to remember & consult `sel --help`).
 To see what configuration is being used for any particular invocation of `sel`,
 use `sel <command> --list-config`.
 
-Note: the `[arguments]` heading is required.
+Note: the `[default]` heading is required. Other headers can be specified with
+`--config-profile=HEADING_NAME`.
 
 ```
 [arguments]
 --firefox-path=~/somewhere/there/is/firefox-bin
 -v
+
+[chrome1]
+--browser=chrome
+--chrome-path=/path/to/chrome/1/bin
 ```
 
