@@ -18,12 +18,15 @@ Options:
   -c NAME --classname NAME       Only operate on test classes named NAME.
                                  Can be a comma-separated list of names.
   -b NAME --browser NAME         Browser to run with. Can be one of chrome,
-                                 firefox, phantomjs, ie, safari.
+                                 firefox, phantomjs, ie, safari, remote.
                                  Defaults to firefox.
-  -o PATH --output PATH          Path where images will be saved; default is <path>.
+  -o PATH --output PATH          Path where images will be saved.
+                                 Default is <path>.
   --config                       Specify path to config file. Default is to first
-                                 look at ./.seltestrc, and then ~/.seltestrc
-  --list-config                  Print out the current configuration being used.
+                                 look for ./.seltestrc, and then ~/.seltestrc
+  --config-profile NAME          Name of the profile to use. Inherits from the
+                                 `default` profile.
+  --config-list                  Print out the current configuration being used.
   --wait SECONDS                 Wait SECONDS between each test. Useful for
                                  debugging tests and manually monitoring them.
                                  Defaults to 0.
@@ -38,7 +41,12 @@ Options:
   --ie-path PATH                 Path to Interet Explorer binary, if you don't
                                  want to use the default.
   --remote-command-executor URL  URL of the Selenium Remote Server to connect to.
-                                 Sets the driver to RemoteServer.
+  --remote-browser-name NAME     Name of the browser to use with the remote
+                                 driver. (Modifies capabilities.)
+  --remote-browser-version V     Version of the browser to use with the remote
+                                 driver. (Modifies capabilities.)
+  --remote-platform-name NAME    Name of the platform to use with the remote
+                                 driver. (Modifies capabilities.)
 """
 import __init__ as seltest
 import proxy
@@ -197,6 +205,7 @@ def _get_args():
 
     config_path = args['--config'] or _find_config()
     config = {}
+    profile_config = {}
     if config_path:
         config_path = _expand_path(config_path)
         # allow_no_value so we can write `-v`, not `-v=True`
@@ -204,9 +213,14 @@ def _get_args():
         cp.read(config_path)
         # this allows -v to mean -v=True, not -v=None
         config = dict((key, True if value is None else value)
-                      for key, value in cp.items('arguments'))
+                      for key, value in cp.items('default'))
+        profile_name = args['--config-profile']
+        if profile_name:
+            profile_config = dict((key, True if value is None else value)
+                                  for key, value in cp.items(profile_name))
 
-    config = _merge_config_dicts(DEFAULTS, config)
+    config = _merge_config_dicts(config, DEFAULTS)
+    config = _merge_config_dicts(profile_config, config)
     config = _merge_config_dicts(args, config)
     return config
 
@@ -214,11 +228,15 @@ def _get_args():
 def _create_driver(args):
     config = {}
     browser = args['--browser'].lower()
-    if args['--remote-command-executor']:
-        try:
-            capabilities = getattr(DesiredCapabilities, browser.upper())
-        except AttributeError, e:
-            sys.exit('No browser capability for {}'.format(browser))
+    if browser == 'remote':
+        if args['--remote-command-executor'] is None:
+            sys.exit(
+                'remote browser must specify --remote-command-executor URL')
+        capabilities = {
+            'platform': args['--remote-platform-name'],
+            'browserName': args['--remote-browser-name'],
+            'version': args['--remote-browser-version']
+        }
         config = {"command_executor": args['--remote-command-executor'],
                   "desired_capabilities": capabilities}
         driver = webdriver.Remote
@@ -358,7 +376,7 @@ def main(args=None):
     if args is None:
         args = _get_args()
 
-    if args['--list-config']:
+    if args['--config-list']:
         _list_config(args)
         sys.exit(0)
 
