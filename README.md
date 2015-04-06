@@ -14,7 +14,7 @@ Because you're responsible and totally do that.
 
 And yes, while testing individual components of your web application is well and
 good, sometimes you don't have time for that. When it's one of those times, just
-write a lines to test everything.
+write a few lines of code to test everything.
 
 ```python
 class Website(seltest.Base):
