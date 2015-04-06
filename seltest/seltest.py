@@ -10,6 +10,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 import hashlib
 import os
 import pkg_resources
+import sys
 import time
 import types
 
@@ -43,8 +44,12 @@ class BaseMeta(type):
 
     @classmethod
     def _update_url_with_base_url(meta, value, cls_attrs):
+        module = sys.modules[cls_attrs['__module__']]
         if 'base_url' in cls_attrs:
             full_url = cls_attrs['base_url'] + getattr(value, '__url', '')
+            setattr(value, '__url', full_url)
+        elif hasattr(module, 'base_url'):
+            full_url = module.base_url + getattr(value, '__url', '')
             setattr(value, '__url', full_url)
 
     @classmethod
@@ -75,9 +80,11 @@ class BaseMeta(type):
 class Base(object):
     """Base from which all tests must inherit from."""
     __metaclass__ = BaseMeta
-    window_size = DEFAULT_WINDOW_SIZE
 
     def __init__(self, driver):
+        __module = sys.modules[self.__module__]
+        self.window_size = (getattr(__module, 'window_size', None)
+                            or DEFAULT_WINDOW_SIZE)
         self.__test_methods = type(self).__dict__['__test_methods']
         self.base_url = ''
         self.driver = driver

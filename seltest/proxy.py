@@ -50,7 +50,8 @@ def _reverse_proxy(url='/'):
     headers = dict(response.headers)
     # TODO: Only delete this if need be (e.g. if <head is in the first chunk of
     #       the response).
-    del headers['content-length']
+    if headers.get('content-length'):
+        del headers['content-length']
     is_html_response = 'text/html' in headers.get('content-type')
     def resp_iter():
         is_first_chunk = True
