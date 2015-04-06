@@ -343,25 +343,25 @@ def _run(args, driver):
         if not args['list'] and args['-v']:
             print('Saving images to {}'.format(image_path))
         if args['test']:
-            print 'Running tests...'
+            print('Running tests...')
             p, port = _start_reverse_proxy()
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                passes = Test(driver).run(image_dir=image_path,
-                                          proxy_port=port,
-                                          wait=args['--wait'])
+                passes = Test(driver)._run(image_dir=image_path,
+                                           proxy_port=port,
+                                           wait=args['--wait'])
             _kill_reverse_proxy(p)
             return passes
         elif args['update']:
-            print 'Updating images...'
+            print('Updating images...')
             p, port = _start_reverse_proxy()
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                Test(driver).update(image_path, port,
-                                    wait=args['--wait'])
+                Test(driver)._update(image_path, port,
+                                     wait=args['--wait'])
             _kill_reverse_proxy(p)
         elif args['list']:
-            print 'All matched tests:'
+            print('All matched tests:')
             for Test in classes:
                 methods = Test.__test_methods
                 print(' {}: {} tests'.format(Test.__name__, len(methods)))

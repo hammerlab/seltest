@@ -101,32 +101,40 @@ class Base(object):
             }};
             """.format(css_selector))
 
-    def run(self, image_dir, proxy_port, wait=None):
+    def _run(self, image_dir, proxy_port, wait=None):
         passes = True
         for test in self.__test_methods:
             name, url = self._name_and_url(test)
             try:
                 self._prepare_page(test, name, url, proxy_port)
-            except TimeoutException, e:
-                print '  ✗ {}: test timed out: {}'.format(name, e)
-                return None
+            except TimeoutException as e:
+                print('  ✗ {}: test timed out: {}'.format(name, e))
+                continue
+            except AssertionError as e:
+                print('  ✗ {}: assertion failed: {}'.format(name, e))
+                continue
+            finally:
+                if wait:
+                    time.sleep(float(wait))
             if not self._screenshot_and_diff(name, image_dir):
                 passes = False
-            if wait:
-                time.sleep(float(wait))
         return passes
 
-    def update(self, image_dir, proxy_port, wait=None):
+    def _update(self, image_dir, proxy_port, wait=None):
         for test in self.__test_methods:
             name, url = self._name_and_url(test)
             try:
                 self._prepare_page(test, name, url, proxy_port)
-            except TimeoutException, e:
-                print '  ✗ {}: test timed out: {}'.format(name, e)
-                return None
+            except TimeoutException as e:
+                print('  ✗ {}: test timed out: {}'.format(name, e))
+                continue
+            except AssertionError as e:
+                print('  ✗ {}: assertion failed: {}'.format(name, e))
+                continue
+            finally:
+                if wait:
+                    time.sleep(float(wait))
             self._update_screenshot(name, image_dir)
-            if wait:
-                time.sleep(float(wait))
 
     def _prepare_page(self, test, name, url, proxy_port):
         self._reset_mouse_position()
@@ -207,7 +215,7 @@ class Base(object):
         old_path = u'{0}/{1}.png'.format(image_dir, name)
         if not os.path.isfile(old_path):
             msg = u'  • {0}: no screenshot found, creating for the first time.'
-            print msg.format(name)
+            print(msg.format(name))
             self.driver.save_screenshot(old_path)
             return True
         else:
@@ -216,27 +224,27 @@ class Base(object):
             if _are_same_files(new_path, old_path):
                 os.remove(new_path)
                 msg = u'  ✓ {0}: no change'
-                print msg.format(name)
+                print(msg.format(name))
                 return True
             else:
                 msg = u'  ✗ {0}: screenshots differ, see {1}/{0}.NEW.png'
-                print msg.format(name, image_dir)
+                print(msg.format(name, image_dir))
                 return False
 
     def _update_screenshot(self, name, image_dir):
         path = u'{0}/{1}.png'.format(image_dir, name)
         if not os.path.isfile(path):
             msg = u'  • {0}: creating for the first time.'
-            print msg.format(name)
+            print(msg.format(name))
         else:
             new_path = u'{0}/_{1}.png'.format(image_dir, name)
             self.driver.save_screenshot(new_path)
             if _are_same_files(new_path, path):
                 msg = u'  ✓ {0}: no change'
-                print msg.format(name)
+                print(msg.format(name))
             else:
                 msg = u'  ✗ {0}: screenshots differ, updating'
-                print msg.format(name)
+                print(msg.format(name))
             os.remove(new_path)
         self.driver.save_screenshot(path)
 
