@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from __future__ import absolute_import, unicode_literals
+
 import PIL.Image as Image
 from selenium import webdriver
 from selenium.webdriver.support.ui import Select, WebDriverWait
@@ -16,20 +18,19 @@ import types
 
 
 AJAX_TIMEOUT = 10  # seconds
-AJAX_TIMEOUT_MSG = u'Timed out waiting for XMLHTTPRequests to finish.'
+AJAX_TIMEOUT_MSG = 'Timed out waiting for XMLHTTPRequests to finish.'
 GET_PENDING_REQUESTS_JS = 'return window.__SELTEST_PENDING_REQUESTS;'
 WAIT_TIMEOUT = 10  # seconds
-WAIT_TIMEOUT_MSG = u'Timed out waiting for: {}.'
+WAIT_TIMEOUT_MSG = 'Timed out waiting for: {}.'
 
 DEFAULT_WINDOW_SIZE = [2000, 1800]
-
 
 class BaseMeta(type):
     """Base metaclass that tracks all test functions."""
 
     def __new__(cls, cls_name, cls_bases, cls_attrs):
         cls_attrs['__test_methods'] = []
-        for attr, value in cls_attrs.iteritems():
+        for attr, value in cls_attrs.items():
             if BaseMeta._is_a_test_method(attr, value):
                 cls_attrs['__test_methods'].append(value)
                 BaseMeta._update_url_with_base_url(value, cls_attrs)
@@ -77,10 +78,8 @@ class BaseMeta(type):
         return sorted(methods, key=lambda m: getattr(m, '__name'))
 
 
-class Base(object):
+class Base(object, metaclass=BaseMeta):
     """Base from which all tests must inherit from."""
-    __metaclass__ = BaseMeta
-
     def __init__(self, driver):
         __module = sys.modules[self.__module__]
         self.window_size = (getattr(__module, 'window_size', None)
@@ -200,50 +199,50 @@ class Base(object):
             return ''
         waitstrs = []
         for waitfor in getattr(test, '__waitfors'):
-            waitstr = u''
+            waitstr = ''
             waitstr += waitfor['css_selector']
             text = waitfor.get('text')
             if text:
-                waitstr += u' (text={})'.format(text)
+                waitstr += ' (text={})'.format(text)
             classes = waitfor.get('classes')
             if classes:
-                waitstr += u' (classes={})'.format(' '.join(classes))
+                waitstr += ' (classes={})'.format(' '.join(classes))
             waitstrs.append(waitstr)
-        return u', '.join(waitstrs)
+        return ', '.join(waitstrs)
 
     def _screenshot_and_diff(self, name, image_dir):
-        old_path = u'{0}/{1}.png'.format(image_dir, name)
+        old_path = '{0}/{1}.png'.format(image_dir, name)
         if not os.path.isfile(old_path):
-            msg = u'  • {0}: no screenshot found, creating for the first time.'
+            msg = '  • {0}: no screenshot found, creating for the first time.'
             print(msg.format(name))
             self.driver.save_screenshot(old_path)
             return True
         else:
-            new_path = u'{0}/{1}.NEW.png'.format(image_dir, name)
+            new_path = '{0}/{1}.NEW.png'.format(image_dir, name)
             self.driver.save_screenshot(new_path)
             if _are_same_files(new_path, old_path):
                 os.remove(new_path)
-                msg = u'  ✓ {0}: no change'
+                msg = '  ✓ {0}: no change'
                 print(msg.format(name))
                 return True
             else:
-                msg = u'  ✗ {0}: screenshots differ, see {1}/{0}.NEW.png'
+                msg = '  ✗ {0}: screenshots differ, see {1}/{0}.NEW.png'
                 print(msg.format(name, image_dir))
                 return False
 
     def _update_screenshot(self, name, image_dir):
-        path = u'{0}/{1}.png'.format(image_dir, name)
+        path = '{0}/{1}.png'.format(image_dir, name)
         if not os.path.isfile(path):
-            msg = u'  • {0}: creating for the first time.'
+            msg = '  • {0}: creating for the first time.'
             print(msg.format(name))
         else:
-            new_path = u'{0}/_{1}.png'.format(image_dir, name)
+            new_path = '{0}/_{1}.png'.format(image_dir, name)
             self.driver.save_screenshot(new_path)
             if _are_same_files(new_path, path):
-                msg = u'  ✓ {0}: no change'
+                msg = '  ✓ {0}: no change'
                 print(msg.format(name))
             else:
-                msg = u'  ✗ {0}: screenshots differ, updating'
+                msg = '  ✗ {0}: screenshots differ, updating'
                 print(msg.format(name))
             os.remove(new_path)
         self.driver.save_screenshot(path)

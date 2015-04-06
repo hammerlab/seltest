@@ -48,8 +48,10 @@ Options:
   --remote-platform-name NAME    Name of the platform to use with the remote
                                  driver. (Modifies capabilities.)
 """
-import __init__ as seltest
-import proxy
+from __future__ import absolute_import, unicode_literals
+
+import seltest
+import seltest.proxy
 
 import docopt
 
@@ -89,7 +91,8 @@ def _get_test_classes_from_modules(modules):
         for attr in dir(module):
             val = getattr(module, attr)
             not_base_itself = not val == seltest.Base
-            instance_of_base = isinstance(val, seltest.BaseMeta)
+            instance_of_base = (hasattr(val, '__bases__')
+                                and seltest.Base in val.__bases__)
             if not_base_itself and instance_of_base:
                 classes.append(val)
     return classes
@@ -300,9 +303,10 @@ def _start_reverse_proxy():
     # Now we spin off our reverse proxy into another process, so that we can run
     # tests through it.
     def run_server(port):
-        devnull = open(os.devnull, 'w')
+        #devnull = open(os.devnull, 'w')
+        devnull = None
         with RedirectStdStreams(stdout=devnull, stderr=devnull):
-            proxy.app.run('localhost', port=port)
+            seltest.proxy.app.run('localhost', port=port)
     p = multiprocessing.Process(target=run_server, args=(port,))
     p.start()
     return p, port
