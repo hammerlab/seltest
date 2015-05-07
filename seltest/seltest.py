@@ -86,7 +86,8 @@ class Base(object):
     """Base from which all tests must inherit from."""
     def __init__(self, driver):
         __module = sys.modules[self.__module__]
-        self.window_size = (getattr(__module, 'window_size', None)
+        self.window_size = (getattr(self, 'window_size', None)
+                            or getattr(__module, 'window_size', None)
                             or DEFAULT_WINDOW_SIZE)
         self.__test_methods = type(self).__dict__['__test_methods']
         self.base_url = ''
