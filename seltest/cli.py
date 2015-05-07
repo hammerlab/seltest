@@ -303,8 +303,7 @@ def _start_reverse_proxy():
     # Now we spin off our reverse proxy into another process, so that we can run
     # tests through it.
     def run_server(port):
-        #devnull = open(os.devnull, 'w')
-        devnull = None
+        devnull = open(os.devnull, 'w')
         with RedirectStdStreams(stdout=devnull, stderr=devnull):
             seltest.proxy.app.run('localhost', port=port)
     p = multiprocessing.Process(target=run_server, args=(port,))

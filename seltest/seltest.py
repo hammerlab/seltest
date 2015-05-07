@@ -16,6 +16,8 @@ import sys
 import time
 import types
 
+from seltest.helpers import with_metaclass
+
 
 AJAX_TIMEOUT = 10  # seconds
 AJAX_TIMEOUT_MSG = 'Timed out waiting for XMLHTTPRequests to finish.'
@@ -24,6 +26,7 @@ WAIT_TIMEOUT = 10  # seconds
 WAIT_TIMEOUT_MSG = 'Timed out waiting for: {}.'
 
 DEFAULT_WINDOW_SIZE = [2000, 1800]
+
 
 class BaseMeta(type):
     """Base metaclass that tracks all test functions."""
@@ -78,7 +81,8 @@ class BaseMeta(type):
         return sorted(methods, key=lambda m: getattr(m, '__name'))
 
 
-class Base(object, metaclass=BaseMeta):
+@with_metaclass(BaseMeta)
+class Base(object):
     """Base from which all tests must inherit from."""
     def __init__(self, driver):
         __module = sys.modules[self.__module__]

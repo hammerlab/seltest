@@ -56,3 +56,18 @@ def hide(css_selector):
         method.__hide.append(css_selector)
         return method
     return decorator
+
+
+def with_metaclass(mcls):
+    """
+    For metaclass compatibility between Python 2 and 3.
+
+    cf. http://stackoverflow.com/questions/22409430/portable-meta-class-between-python2-and-python3
+    """
+    def decorator(cls):
+        body = vars(cls).copy()
+        # clean out class body
+        body.pop('__dict__', None)
+        body.pop('__weakref__', None)
+        return mcls(cls.__name__, cls.__bases__, body)
+    return decorator
