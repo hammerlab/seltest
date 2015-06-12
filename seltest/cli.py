@@ -40,13 +40,9 @@ Options:
                                  use the default.
   --ie-path PATH                 Path to Interet Explorer binary, if you don't
                                  want to use the default.
+  --remote-capabilities JSON     JSON describing the capabilities to be passed
+                                 to the remote driver.
   --remote-command-executor URL  URL of the Selenium Remote Server to connect to.
-  --remote-browser-name NAME     Name of the browser to use with the remote
-                                 driver. (Modifies capabilities.)
-  --remote-browser-version V     Version of the browser to use with the remote
-                                 driver. (Modifies capabilities.)
-  --remote-platform-name NAME    Name of the platform to use with the remote
-                                 driver. (Modifies capabilities.)
 """
 from __future__ import absolute_import, unicode_literals
 
@@ -56,6 +52,7 @@ import seltest.proxy
 import docopt
 
 import importlib
+import json
 import multiprocessing
 import os
 import re
@@ -232,14 +229,17 @@ def _create_driver(args):
     config = {}
     browser = args['--browser'].lower()
     if browser == 'remote':
+        if args['--remote-capabilities'] is None:
+            sys.exit(
+                'remote-capabilities must be present for the remote driver.')
+        try:
+            capabilities = json.loads(args['--remote-capabilities'])
+        except ValueError:
+            sys.exit(
+                'Could not parse --remote-capabilities: make sure it is valid JSON')
         if args['--remote-command-executor'] is None:
             sys.exit(
                 'remote browser must specify --remote-command-executor URL')
-        capabilities = {
-            'platform': args['--remote-platform-name'],
-            'browserName': args['--remote-browser-name'],
-            'version': args['--remote-browser-version']
-        }
         config = {"command_executor": args['--remote-command-executor'],
                   "desired_capabilities": capabilities}
         driver = webdriver.Remote
