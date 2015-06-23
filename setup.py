@@ -8,7 +8,7 @@ except (IOError, ImportError):
 
 
 setup(name='seltest',
-      version='0.2.7',
+      version='0.2.8',
       description='A perceptual difference testing framework for writing the easiest, most comprehensive tests you can run.',
       long_description=description,
       author='Isaac Hodes',
@@ -20,7 +20,8 @@ setup(name='seltest',
                         'docopt',
                         'Pillow',
                         'flask',
-                        'requests'],
+                        'requests',
+                        'imgurpython'],
       entry_points={
           'console_scripts': [
              'sel = seltest.cli:main',
