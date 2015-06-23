@@ -225,16 +225,18 @@ class Base(object):
             self.driver.save_screenshot(old_path)
             return True
         else:
-            new_path = '{0}/{1}.NEW.png'.format(image_dir, name)
+            new_path = '{image_dir}/{name}.NEW.png'.format(image_dir=image_dir,
+                                                           name=name)
             self.driver.save_screenshot(new_path)
             if _are_same_files(new_path, old_path):
                 os.remove(new_path)
-                msg = '  ✓ {0}: no change'
-                print(msg.format(name))
+                msg = '  ✓ {name}: no change'
+                print(msg.format(name=name))
                 return True
             else:
-                msg = '  ✗ {0}: screenshots differ, see {1}/{0}.NEW.png'
-                print(msg.format(name, image_dir))
+                msg = ('  ✗ {name}: screenshots differ, '
+                       'see {image_dir}/{name}.NEW.png')
+                print(msg.format(name=name, image_dir=image_dir))
                 return False
 
     def _update_screenshot(self, name, image_dir):

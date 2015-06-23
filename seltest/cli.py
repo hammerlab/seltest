@@ -348,13 +348,20 @@ def _run(args, driver):
         if args['test']:
             print('Running tests...')
             p, port = _start_reverse_proxy()
+            passing_tests = []
+            failing_tests = []
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
                 passes = Test(driver)._run(image_dir=image_path,
                                            proxy_port=port,
                                            wait=args['--wait'])
+                if passes:
+                    passing_tests.append(Test)
+                else:
+                    failing_tests.append(Test)
             _kill_reverse_proxy(p)
-            return passes
+            if failing_tests:
+                return False
         elif args['update']:
             print('Updating images...')
             p, port = _start_reverse_proxy()
