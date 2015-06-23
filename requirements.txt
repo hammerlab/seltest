@@ -1,7 +1,7 @@
 selenium
 nose
 docopt
-pypandoc
 Pillow
 requests
 flask
+imgurpython

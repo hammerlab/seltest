@@ -40,6 +40,8 @@ Options:
                                  use the default.
   --ie-path PATH                 Path to Interet Explorer binary, if you don't
                                  want to use the default.
+  --imgur_client_id ID           Provide an imgur.com API client ID to upload
+                                 photos of failed tests to imgur.
   --remote-capabilities JSON     JSON describing the capabilities to be passed
                                  to the remote driver.
   --remote-command-executor URL  URL of the Selenium Remote Server to connect to.
@@ -352,9 +354,12 @@ def _run(args, driver):
             failing_tests = []
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                passes = Test(driver)._run(image_dir=image_path,
-                                           proxy_port=port,
-                                           wait=args['--wait'])
+                imgur_client_id = args['--imgur_client_id']
+                suite = Test(driver,
+                             imgur_client_id=imgur_client_id)
+                passes = suite._run(image_dir=image_path,
+                                    proxy_port=port,
+                                    wait=args['--wait'])
                 if passes:
                     passing_tests.append(Test)
                 else:

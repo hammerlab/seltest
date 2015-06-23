@@ -10,6 +10,7 @@ from selenium.common.exceptions import (WebDriverException,
 from selenium.webdriver.common.action_chains import ActionChains
 
 import hashlib
+import imgurpython
 import os
 import pkg_resources
 import sys
@@ -84,8 +85,9 @@ class BaseMeta(type):
 @with_metaclass(BaseMeta)
 class Base(object):
     """Base from which all tests must inherit from."""
-    def __init__(self, driver):
+    def __init__(self, driver, imgur_client_id=None):
         __module = sys.modules[self.__module__]
+        self.imgur_client_id = imgur_client_id
         self.window_size = (getattr(self, 'window_size', None)
                             or getattr(__module, 'window_size', None)
                             or DEFAULT_WINDOW_SIZE)
@@ -235,8 +237,14 @@ class Base(object):
                 return True
             else:
                 msg = ('  ✗ {name}: screenshots differ, '
-                       'see {image_dir}/{name}.NEW.png')
-                print(msg.format(name=name, image_dir=image_dir))
+                       'see {path}')
+                path = "{image_dir}/{name}.NEW.png".format(
+                    name=name, image_dir=image_dir)
+                print(msg.format(name=name, path=path))
+                if self.imgur_client_id:
+                    im = imgurpython.ImgurClient(self.imgur_client_id, None)
+                    image = im.upload_from_path(path)
+                    print('    uploaded image at {}'.format(image['link']))
                 return False
 
     def _update_screenshot(self, name, image_dir):
