@@ -5,12 +5,14 @@ Used to inject JavaScript to instrument XHR requests so they can be tracked and
 counted.
 """
 from __future__ import absolute_import, unicode_literals
+import re
 
 from flask import Flask, request, Response, make_response
 import requests
 
 
 CHUNK_SIZE = 1024
+HEAD_RE = re.compile('<head', re.I)
 TRACKING_PENDING_REQUESTS_JS = b"""
 <script>
 window.__SELTEST_PENDING_REQUESTS = 0;
@@ -60,7 +62,7 @@ def _reverse_proxy(url='/'):
         for chunk in response.iter_content(CHUNK_SIZE):
             # TODO: Possible bug: '<head' could span 2 chunks... (very unlikely)
             if is_first_chunk and is_html_response and _head_in_chunk(chunk):
-                idx = chunk.find(b'<head') or chunk.find(b'<HEAD')
+                idx = HEAD_RE.search(chunk).start()
                 yield chunk[:idx] + TRACKING_PENDING_REQUESTS_JS + chunk[idx:]
             else:
                 yield chunk
@@ -72,7 +74,7 @@ def _reverse_proxy(url='/'):
 
 
 def _head_in_chunk(chunk):
-    return b'<head' in chunk or b'<HEAD' in chunk
+    return HEAD_RE.search(chunk) is not None
 
 
 def _no_host(url):
