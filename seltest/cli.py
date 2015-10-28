@@ -403,7 +403,8 @@ def main(args=None):
     try:
         passes = _run(args, driver)
     finally:
-        driver.quit()
+        if driver:
+            driver.quit()
 
     if passes:
         sys.exit(0)
