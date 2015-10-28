@@ -273,7 +273,7 @@ def _are_same_files(*args):
     hashed = None
     for path in args:
         with Image.open(path) as i:
-            next_hashed = hashlib.sha512(i.tostring()).hexdigest()
+            next_hashed = hashlib.sha512(i.tobytes()).hexdigest()
             if hashed is not None:
                 if next_hashed != hashed:
                     return False
