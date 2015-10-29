@@ -37,7 +37,7 @@ Decorators to be used on test methods are the following.
   - You can add as many of these to a single test as you'd like.
 * `@dontwaitfor(css_selector)`
   - If there is a class-level `wait_for` or `wait_fors`, ignore it for this test.
-* `@hid(css_selector)`
+* `@hide(css_selector)`
   - Removes all elements matching `css_selector` before the screenshot is taken.
   - You can add as many of these to a single test as you'd like.
 
