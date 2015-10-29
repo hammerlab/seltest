@@ -182,6 +182,12 @@ that has just been opened for you.
 Use it to explore the available API, and make sure the tests you're writing are
 doing what you want them to do.
 
+For example, to make the driver open a page, run something like:
+
+```
+driver.get('http://www.google.com/')
+```
+
 
 # Config
 
