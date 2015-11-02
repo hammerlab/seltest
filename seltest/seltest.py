@@ -52,10 +52,13 @@ class BaseMeta(type):
         module = sys.modules[cls_attrs['__module__']]
         if 'base_url' in cls_attrs:
             full_url = cls_attrs['base_url'] + getattr(value, '__url', '')
-            setattr(value, '__url', full_url)
         elif hasattr(module, 'base_url'):
             full_url = module.base_url + getattr(value, '__url', '')
-            setattr(value, '__url', full_url)
+        else:
+            full_url = getattr(value, '__url', '')
+        if full_url.startswith('/'):
+            full_url = full_url[1:]
+        setattr(value, '__url', full_url)
 
     @classmethod
     def _update_waitfors_with_base(meta, value, cls_attrs):
@@ -91,6 +94,10 @@ class Base(object):
         self.window_size = (getattr(self, 'window_size', None)
                             or getattr(__module, 'window_size', None)
                             or DEFAULT_WINDOW_SIZE)
+        self.host = (getattr(self, 'host', None)
+                     or getattr(__module, 'host', None))
+        if self.host is None:
+            raise ValueError('`host` must be specified at the module or class level.')
         self.__test_methods = type(self).__dict__['__test_methods']
         self.base_url = ''
         self.driver = driver
@@ -173,6 +180,8 @@ class Base(object):
                 results.append(text_present and has_classes)
             except NoSuchElementException:
                 return False
+        for waitfor in getattr(test, '__wait_for_js_strings', []):
+            self._wait_for_js_string(waitfor)
         return all(results)
 
     def _name_and_url(self, test):
@@ -190,6 +199,13 @@ class Base(object):
         WebDriverWait(self.driver, AJAX_TIMEOUT).until(
             _ajax_is_complete,  AJAX_TIMEOUT_MSG)
         self.driver.implicitly_wait(WAIT_TIMEOUT)
+
+    def _wait_for_js_string(self, string):
+        self.driver.implicitly_wait(0)
+        WebDriverWait(self.driver, 60).until(
+            lambda d: d.execute_script(string),
+            'timed out waiting for "{}"'.format(string))
+        self.driver.implicitly_wait(60)
 
     def _handle_waitfors(self, test):
         self.driver.implicitly_wait(0)

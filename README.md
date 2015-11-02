@@ -18,7 +18,7 @@ write a few lines of code to test everything.
 
 ```python
 class Website(seltest.Base):
-  base_url = 'localhost:4000'
+  host = 'localhost:4000'
 
   def base(self, driver):
       pass
@@ -27,7 +27,8 @@ class Website(seltest.Base):
       driver.select_element_by_css_selector('#my-btn').click()
 ```
 
-And test it with `sel test .`.
+And test it with `sel test .`. (This will run seltest on all Python modules in
+the specified directory with "test" in their name.)
 
 ```
 Testing images...
@@ -101,6 +102,7 @@ Options:
   --wait SECONDS                 Wait SECONDS between each test. Useful for
                                  debugging tests and manually monitoring them.
                                  Defaults to 0.
+  --display-proxy-server-logs    Print proxy-server logs + debug info.
   --firefox-path PATH            Path to Firefox binary, if you don't want to
                                  use the default.
   --chrome-path PATH             Path to Chrome binary, if you don't want to
@@ -143,7 +145,7 @@ from seltest import url, waitfor, Base
 BASE = 'localhost:5001'
 
 class Website(Base):
-    base_url = BASE
+    host = BASE
 
     @url('/about')
     def about_page(self, driver): pass
@@ -153,7 +155,7 @@ class Website(Base):
 
 
 class Runs(Base):
-    base_url = BASE
+    host = BASE
 
     def page(self, driver):
         """Shows the default runs page."""

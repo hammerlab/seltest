@@ -1,14 +1,18 @@
 # API
 
 The primary classes and functions exported by seltest are: `Base`, `url`,
-`waitfor`, `dontwaitfor`, and `hide`.
+`waitfor`, `waitforjs`, `dontwaitfor`, and `hide`.
 
 All test classes must inherit from `Base`. All test methods within `Base` have
-signature `(self, driver)`.
+signature `(self, driver)`, and cannot start with an underscore (if they do,
+they won't be run; this is useful for helper methods).
 
 At the module and class level, the following attributes may be defined
 (class-level attributes overriding the module-level attributes).
 
+* `host`
+  - The webserver host, e.g. `localhost:5050` under test.
+  - This **must** be defined at either the module or the class level.
 * `base_url`
   - (`str`) the URL relative to which all tests will be run. No `http://` required.
 * `window_size`
@@ -35,9 +39,13 @@ Decorators to be used on test methods are the following.
   - Elements to wait for (see `wait_for` above) on this particular test before
     taking the screenshot.
   - You can add as many of these to a single test as you'd like.
+* `@waitforjs(js_string)`
+  - Decorator which executes `js_string` on the page, and waits until it returns
+    true before taking a screenshot.
+  - e.g. `return window.height > 20`
 * `@dontwaitfor(css_selector)`
   - If there is a class-level `wait_for` or `wait_fors`, ignore it for this test.
-* `@hid(css_selector)`
+* `@hide(css_selector)`
   - Removes all elements matching `css_selector` before the screenshot is taken.
   - You can add as many of these to a single test as you'd like.
 
@@ -53,7 +61,7 @@ from selenium.webdriver.support.ui import Select
 from selenium.webdriver.common.action_chains import ActionChains
 
 
-base_url = 'localhost:5001'
+host = 'localhost:5001'
 window_size = [1280, 800]
 
 class Website(Base):

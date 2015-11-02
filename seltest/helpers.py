@@ -2,7 +2,7 @@
 
 def url(url_str=''):
     """
-    Decorator for specifying the URL the test shoudl visit, relative to the test
+    Decorator for specifying the URL the test should visit, relative to the test
     class's `base_url`.
     """
     def decorator(method):
@@ -26,6 +26,21 @@ def waitfor(css_selector, text=None, classes=None):
             'text': text,
             'classes': classes
         })
+        return method
+    return decorator
+
+
+def waitforjs(js_string):
+    """
+    Decorator which executes `js_string` on the page, and waits until it returns
+    true before taking a screenshot. `js_string` must return something; e.g.
+
+    'return window.height > 20'
+    """
+    def decorator(method):
+        if not isinstance(getattr(method, '__wait_for_js_strings', None), list):
+            setattr(method, '__wait_for_js_strings', [])
+        method.__wait_for_js_strings.append(js_string)
         return method
     return decorator
 

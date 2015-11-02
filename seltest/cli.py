@@ -30,6 +30,7 @@ Options:
   --wait SECONDS                 Wait SECONDS between each test. Useful for
                                  debugging tests and manually monitoring them.
                                  Defaults to 0.
+  --display-proxy-server-logs    Print proxy-server logs + debug info.
   --firefox-path PATH            Path to Firefox binary, if you don't want to
                                  use the default.
   --chrome-path PATH             Path to Chrome binary, if you don't want to
@@ -296,19 +297,26 @@ class RedirectStdStreams(object):
         sys.stderr = self.old_stderr
 
 
-def _start_reverse_proxy():
+def _start_reverse_proxy(host, show_logs=False):
     # This socket business is to ensure we get a free port to bind to.
     sock = socket.socket()
     sock.bind(('', 0))
     port = sock.getsockname()[1]
     sock.close()
+
     # Now we spin off our reverse proxy into another process, so that we can run
     # tests through it.
-    def run_server(port):
-        devnull = open(os.devnull, 'w')
+    def run_server(port, show_logs):
+        # Send the proxy server's logs to devnull if requested (default yes)
+        if show_logs:
+            devnull = None
+        else:
+            devnull = open(os.devnull, 'w')
+
         with RedirectStdStreams(stdout=devnull, stderr=devnull):
-            seltest.proxy.app.run('localhost', port=port)
-    p = multiprocessing.Process(target=run_server, args=(port,))
+            seltest.proxy.init(host).run('localhost', port=port)
+
+    p = multiprocessing.Process(target=run_server, args=(port, show_logs))
     p.start()
     return p, port
 
@@ -345,11 +353,11 @@ def _run(args, driver):
     else:
         classes = _get_filtered_classes_to_run(args)
         image_path = _get_image_output_path(args)
+        proxy_logs = args['--display-proxy-server-logs']
         if not args['list'] and args['-v']:
             print('Saving images to {}'.format(image_path))
         if args['test']:
             print('Running tests...')
-            p, port = _start_reverse_proxy()
             passing_tests = []
             failing_tests = []
             for Test in classes:
@@ -357,6 +365,7 @@ def _run(args, driver):
                 imgur_client_id = args['--imgur_client_id']
                 suite = Test(driver,
                              imgur_client_id=imgur_client_id)
+                p, port = _start_reverse_proxy(suite.host, proxy_logs)
                 passes = suite._run(image_dir=image_path,
                                     proxy_port=port,
                                     wait=args['--wait'])
@@ -364,17 +373,18 @@ def _run(args, driver):
                     passing_tests.append(Test)
                 else:
                     failing_tests.append(Test)
-            _kill_reverse_proxy(p)
+                _kill_reverse_proxy(p)
             if failing_tests:
                 return False
         elif args['update']:
             print('Updating images...')
-            p, port = _start_reverse_proxy()
             for Test in classes:
                 print(' for {}'.format(Test.__name__))
-                Test(driver)._update(image_path, port,
+                suite = Test(driver)
+                p, port = _start_reverse_proxy(suite.host, proxy_logs)
+                suite._update(image_path, port,
                                      wait=args['--wait'])
-            _kill_reverse_proxy(p)
+                _kill_reverse_proxy(p)
         elif args['list']:
             print('All matched tests:')
             for Test in classes:

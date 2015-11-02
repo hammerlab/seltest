@@ -4,7 +4,7 @@ Reverse proxy requests to the server under test with injected JavaScript.
 Used to inject JavaScript to instrument XHR requests so they can be tracked and
 counted.
 """
-from __future__ import absolute_import, unicode_literals
+from __future__ import absolute_import, unicode_literals, print_function
 import re
 
 from flask import Flask, request, Response, make_response
@@ -31,32 +31,37 @@ window.__SELTEST_PENDING_REQUESTS = 0;
 </script>
 """
 
+app = Flask(__name__.split('.')[0], static_url_path='/__SELTEST_AVOIDING_STATIC_URLS__')
 
-app = Flask(__name__.split('.')[0], static_url_path='/__AVOIDING_STATIC_URLS__')
 
-last_host_cache = None
+HOST = None
+def init(host):
+    global HOST
+    HOST = host
+    return app
+
 
 @app.route('/')
 @app.route('/<path:url>')
 def _reverse_proxy(url='/'):
-    global last_host_cache
-    host, relative_url = _split_url(url)
-    if not host:
-        host = last_host_cache
-    else:
-        last_host_cache = host
-
-    if not host:
+    if not HOST:
         raise ValueError('URL has no host.'.format(url))
 
-    url = 'http://{}/{}'.format(host, relative_url)
+    url = 'http://{}/{}'.format(HOST, url)
+
+    print('\n--------------\nURL: ', url,
+          '\nHEADERS:\n', request.headers,
+          '\n--------------')
+
     response = requests.get(url, stream=True, params=request.args)
     headers = dict(response.headers)
+
     # TODO: Only delete this if need be (e.g. if <head is in the first chunk of
     #       the response).
     if headers.get('content-length'):
         del headers['content-length']
     is_html_response = 'text/html' in headers.get('content-type')
+
     def resp_iter():
         is_first_chunk = True
         for chunk in response.iter_content(CHUNK_SIZE):
@@ -82,15 +87,5 @@ def _no_host(url):
     return not url.startswith('localhost') or not '.' in url
 
 
-def _split_url(url):
-    splits = url.split('/')
-    if splits[0].startswith('localhost'):
-        return splits[0], '/'.join(splits[1:])
-    elif '.' in splits[0]:
-        return splits[0], '/'.join(splits[1:])
-    else:
-        return None, url
-
-
 if __name__ == '__main__':
-    app.run('localhost', port=5050, debug=True)
+    app.run('localhost', port=5050, debug=False)
