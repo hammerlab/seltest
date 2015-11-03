@@ -53,15 +53,21 @@ def _reverse_proxy(url='/'):
           '\nHEADERS:\n', request.headers,
           '\n--------------')
 
-    response = requests.get(url, stream=True, params=request.args)
+    req_headers = dict(request.headers)
+    response = requests.get(
+        url,
+        stream=True,
+        params=request.args,
+        headers=req_headers)
     headers = dict(response.headers)
 
-    # TODO: Only delete this if need be (e.g. if <head is in the first chunk of
-    #       the response).
+    print("Response from application server: " , response.status_code,
+          '\n', response.headers, '\n-------------')
+
+    # TODO: fix this; we want a content-length
     if headers.get('content-length'):
         del headers['content-length']
-    is_html_response = 'text/html' in headers.get('content-type')
-
+    is_html_response = 'text/html' in headers.get('content-type', '')
     def resp_iter():
         is_first_chunk = True
         for chunk in response.iter_content(CHUNK_SIZE):
@@ -82,10 +88,5 @@ def _head_in_chunk(chunk):
     return HEAD_RE.search(chunk) is not None
 
 
-def _no_host(url):
-    """Return True if there is no host in url."""
-    return not url.startswith('localhost') or not '.' in url
-
-
 if __name__ == '__main__':
-    app.run('localhost', port=5050, debug=False)
+    app.run('localhost', port=5050, debug=True)
